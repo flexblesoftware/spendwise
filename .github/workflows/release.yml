@@ -44,9 +44,15 @@ jobs:
         run: |
           RAW_REF="${GITHUB_REF#refs/tags/}"
           TAG="${RAW_REF#refs/heads/}"
+          if [[ ! "$TAG" =~ ^v?[0-9] ]]; then
+            TAG="v1.0.0"
+          fi
           echo "TAG=$TAG" >> $GITHUB_ENV
           VERSION_CLEAN="${TAG#v}"
-          IFS='.' read -r MAJOR MINOR PATCH <<< "$VERSION_CLEAN"
+          IFS='.' read -r M_PART N_PART P_PART <<< "$VERSION_CLEAN"
+          MAJOR=$(echo "$M_PART" | tr -dc '0-9')
+          MINOR=$(echo "$N_PART" | tr -dc '0-9')
+          PATCH=$(echo "$P_PART" | tr -dc '0-9')
           MAJOR=${MAJOR:-1}
           MINOR=${MINOR:-0}
           PATCH=${PATCH:-0}
@@ -66,17 +72,17 @@ jobs:
             echo "Decoding release keystore from KEYSTORE_BASE64 secret..."
             echo "$KEYSTORE_BASE64" | base64 -d > spendwise-release.jks
           else
-            echo "KEYSTORE_BASE64 secret not found in repository settings; creating release keystore with backed up credentials..."
+            echo "Generating release keystore..."
             STORE_PASS="${KEYSTORE_PASSWORD:-SwKeyStore2026!7xQm9K4vLpW}"
-            KEY_PASS="${KEY_PASSWORD:-SwKeyAlias2026!9rVn8B3cTxM}"
             ALIAS="${KEY_ALIAS:-spendwise}"
-            keytool -genkeypair -v -keystore spendwise-release.jks -alias "$ALIAS" \
+            printf "yes\n" | keytool -genkeypair -v -keystore spendwise-release.jks -alias "$ALIAS" \
               -keyalg RSA -keysize 2048 -validity 10000 \
-              -storepass "$STORE_PASS" -keypass "$KEY_PASS" \
+              -storepass "$STORE_PASS" -keypass "$STORE_PASS" \
               -dname "CN=MD Shahid, OU=SpendWise, O=SpendWise, L=Termux, ST=State, C=IN"
             echo "KEYSTORE_PASSWORD=$STORE_PASS" >> $GITHUB_ENV
-            echo "KEY_PASSWORD=$KEY_PASS" >> $GITHUB_ENV
+            echo "KEY_PASSWORD=$STORE_PASS" >> $GITHUB_ENV
             echo "KEY_ALIAS=$ALIAS" >> $GITHUB_ENV
+            echo "Generated keystore successfully!"
           fi
 
       - name: Run Unit Tests
@@ -88,7 +94,7 @@ jobs:
           KEYSTORE_FILE: ${{ github.workspace }}/spendwise-release.jks
           KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD || env.KEYSTORE_PASSWORD || 'SwKeyStore2026!7xQm9K4vLpW' }}
           KEY_ALIAS: ${{ secrets.KEY_ALIAS || env.KEY_ALIAS || 'spendwise' }}
-          KEY_PASSWORD: ${{ secrets.KEY_PASSWORD || env.KEY_PASSWORD || 'SwKeyAlias2026!9rVn8B3cTxM' }}
+          KEY_PASSWORD: ${{ secrets.KEY_PASSWORD || env.KEY_PASSWORD || 'SwKeyStore2026!7xQm9K4vLpW' }}
           VERSION_NAME: ${{ env.VERSION_NAME }}
           VERSION_CODE: ${{ env.VERSION_CODE }}
         run: |
@@ -103,11 +109,14 @@ jobs:
             let log = '';
             if (fs.existsSync('test.log')) {
               const content = fs.readFileSync('test.log', 'utf8');
-              log += '### testDebugUnitTest Output (tail):\n```\n' + content.slice(-4000) + '\n```\n';
+              log += '### testDebugUnitTest Output (tail):\n```\n' + content.slice(-3000) + '\n```\n';
             }
             if (fs.existsSync('release.log')) {
               const content = fs.readFileSync('release.log', 'utf8');
-              log += '### assembleRelease Output (tail):\n```\n' + content.slice(-4000) + '\n```\n';
+              log += '### assembleRelease Output (tail):\n```\n' + content.slice(-3000) + '\n```\n';
+            }
+            if (!log) {
+              log = 'Step failure before compilation (check workflow run steps).';
             }
             await github.rest.issues.createComment({
               owner: context.repo.owner,
