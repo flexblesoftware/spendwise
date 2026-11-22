@@ -4,6 +4,9 @@ on:
   push:
     tags:
       - 'v*.*.*'
+    branches:
+      - 'v*.*.*'
+  workflow_dispatch:
 
 permissions:
   contents: write
@@ -33,7 +36,8 @@ jobs:
       - name: Calculate Version Code and Name
         id: versioning
         run: |
-          TAG="${GITHUB_REF#refs/tags/}"
+          RAW_REF="${GITHUB_REF#refs/tags/}"
+          TAG="${RAW_REF#refs/heads/}"
           echo "TAG=$TAG" >> $GITHUB_ENV
           VERSION_CLEAN="${TAG#v}"
           IFS='.' read -r MAJOR MINOR PATCH <<< "$VERSION_CLEAN"
