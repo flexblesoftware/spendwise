@@ -24,14 +24,14 @@ jobs:
         with:
           java-version: '17'
           distribution: 'temurin'
+          cache: 'gradle'
 
-      - name: Set up Gradle 8.11.1
-        uses: gradle/actions/setup-gradle@v4
-        with:
-          gradle-version: '8.11.1'
-
-      - name: Set up Android SDK
-        uses: android-actions/setup-android@v3
+      - name: Setup Gradle 8.11.1
+        run: |
+          wget -q https://services.gradle.org/distributions/gradle-8.11.1-bin.zip
+          unzip -q gradle-8.11.1-bin.zip
+          ./gradle-8.11.1/bin/gradle wrapper
+          chmod +x gradlew
 
       - name: Calculate Version Code and Name
         id: versioning
@@ -72,11 +72,6 @@ jobs:
             echo "KEY_PASSWORD=$KEY_PASS" >> $GITHUB_ENV
             echo "KEY_ALIAS=$ALIAS" >> $GITHUB_ENV
           fi
-
-      - name: Generate Gradle Wrapper
-        run: |
-          gradle wrapper --gradle-version 8.11.1
-          chmod +x gradlew
 
       - name: Run Unit Tests
         run: ./gradlew testDebugUnitTest --stacktrace
