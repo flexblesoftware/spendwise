@@ -4,6 +4,8 @@ import android.app.NotificationManager
 import android.app.Service
 import android.content.Context
 import android.content.Intent
+import android.content.pm.ServiceInfo
+import android.os.Build
 import android.os.IBinder
 import androidx.core.app.NotificationCompat
 import com.shahid.spendwise.R
@@ -40,7 +42,15 @@ class UpdateDownloadService : Service() {
             return START_NOT_STICKY
         }
 
-        startForeground(NOTIFICATION_ID, createProgressNotification(0, tagName))
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+            startForeground(
+                NOTIFICATION_ID,
+                createProgressNotification(0, tagName),
+                ServiceInfo.FOREGROUND_SERVICE_TYPE_DATA_SYNC
+            )
+        } else {
+            startForeground(NOTIFICATION_ID, createProgressNotification(0, tagName))
+        }
         startDownload(downloadUrl, expectedSize, tagName)
 
         return START_NOT_STICKY
@@ -107,6 +117,7 @@ class UpdateDownloadService : Service() {
                     }
                 }
 
+                // Verify file size
                 if (expectedSize > 0 && tempFile.length() != expectedSize) {
                     tempFile.delete()
                     throw IllegalStateException(
@@ -114,6 +125,7 @@ class UpdateDownloadService : Service() {
                     )
                 }
 
+                // Rename temp to target
                 if (targetFile.exists()) targetFile.delete()
                 tempFile.renameTo(targetFile)
 

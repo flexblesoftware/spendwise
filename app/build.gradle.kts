@@ -7,8 +7,8 @@ plugins {
     alias(libs.plugins.hilt)
 }
 
-val releaseStoreFile = file(System.getenv("KEYSTORE_FILE") ?: "../spendwise-release.jks")
-val hasSigningEnv = System.getenv("KEYSTORE_PASSWORD") != null
+val keystoreEnv = System.getenv("KEYSTORE_FILE")
+val releaseStoreFile = if (keystoreEnv != null) file(keystoreEnv) else rootProject.file("spendwise-release.jks")
 
 android {
     namespace = "com.shahid.spendwise"
@@ -32,11 +32,11 @@ android {
 
     signingConfigs {
         create("release") {
-            if (releaseStoreFile.exists() && hasSigningEnv) {
+            if (releaseStoreFile.exists()) {
                 storeFile = releaseStoreFile
-                storePassword = System.getenv("KEYSTORE_PASSWORD")
+                storePassword = System.getenv("KEYSTORE_PASSWORD") ?: "SwKeyStore2026!7xQm9K4vLpW"
                 keyAlias = System.getenv("KEY_ALIAS") ?: "spendwise"
-                keyPassword = System.getenv("KEY_PASSWORD")
+                keyPassword = System.getenv("KEY_PASSWORD") ?: "SwKeyAlias2026!9rVn8B3cTxM"
             }
         }
     }
@@ -49,7 +49,7 @@ android {
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro"
             )
-            if (releaseStoreFile.exists() && hasSigningEnv) {
+            if (releaseStoreFile.exists()) {
                 signingConfig = signingConfigs.getByName("release")
             } else {
                 signingConfig = signingConfigs.getByName("debug")
