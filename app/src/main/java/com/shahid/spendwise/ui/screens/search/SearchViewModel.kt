@@ -26,6 +26,14 @@ data class SearchFilterUiState(
     val isLoading: Boolean = false
 )
 
+private data class FilterCriteria(
+    val query: String = "",
+    val categoryId: Long? = null,
+    val tag: String? = null,
+    val minAmount: Long? = null,
+    val maxAmount: Long? = null
+)
+
 @HiltViewModel
 class SearchViewModel @Inject constructor(
     private val repository: SpendWiseRepository
@@ -37,37 +45,43 @@ class SearchViewModel @Inject constructor(
     private val _minAmountMinor = MutableStateFlow<Long?>(null)
     private val _maxAmountMinor = MutableStateFlow<Long?>(null)
 
+    private val _filterCriteria: Flow<FilterCriteria> = combine(
+        _query,
+        _selectedCategoryId,
+        _selectedTag,
+        _minAmountMinor,
+        _maxAmountMinor
+    ) { q, catId, tag, minAmt, maxAmt ->
+        FilterCriteria(q, catId, tag, minAmt, maxAmt)
+    }
+
     val uiState: StateFlow<SearchFilterUiState> = combine(
         repository.getTransactions(includeLocked = false),
         repository.getAllCategories(),
         repository.getAllFilters(),
-        _query,
-        _selectedCategoryId,
-        _selectedTag,
-        _minAmountMinor
-    ) { txs, categories, savedFilters, query, catId, tag, minAmount ->
+        _filterCriteria
+    ) { txs, categories, savedFilters, criteria ->
         val catMap = categories.associateBy { it.id }
-        val maxAmount = _maxAmountMinor.value
         val uniqueTags = txs.flatMap { it.tags }.distinct().sorted()
 
         val filtered = txs.filter { tx ->
-            val matchesQuery = query.isBlank() ||
-                    tx.note.contains(query, ignoreCase = true) ||
-                    (catMap[tx.categoryId]?.name ?: "").contains(query, ignoreCase = true) ||
-                    tx.tags.any { it.contains(query, ignoreCase = true) }
+            val matchesQuery = criteria.query.isBlank() ||
+                    tx.note.contains(criteria.query, ignoreCase = true) ||
+                    (catMap[tx.categoryId]?.name ?: "").contains(criteria.query, ignoreCase = true) ||
+                    tx.tags.any { it.contains(criteria.query, ignoreCase = true) }
 
-            val matchesCat = catId == null || tx.categoryId == catId
-            val matchesTag = tag == null || tx.tags.contains(tag)
-            val matchesMin = minAmount == null || tx.amountMinor >= minAmount
-            val matchesMax = maxAmount == null || tx.amountMinor <= maxAmount
+            val matchesCat = criteria.categoryId == null || tx.categoryId == criteria.categoryId
+            val matchesTag = criteria.tag == null || tx.tags.contains(criteria.tag)
+            val matchesMin = criteria.minAmount == null || tx.amountMinor >= criteria.minAmount
+            val matchesMax = criteria.maxAmount == null || tx.amountMinor <= criteria.maxAmount
 
             matchesQuery && matchesCat && matchesTag && matchesMin && matchesMax
         }
 
         SearchFilterUiState(
-            query = query,
-            selectedCategoryId = catId,
-            selectedTag = tag,
+            query = criteria.query,
+            selectedCategoryId = criteria.categoryId,
+            selectedTag = criteria.tag,
             results = filtered,
             allTags = uniqueTags,
             categories = categories,
