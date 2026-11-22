@@ -10,8 +10,6 @@ on:
 
 permissions:
   contents: write
-  issues: write
-  pull-requests: write
 
 jobs:
   build-and-release:
@@ -42,31 +40,22 @@ jobs:
       - name: Calculate Version Code and Name
         id: versioning
         run: |
-          RAW_REF="${GITHUB_REF#refs/tags/}"
-          TAG="${RAW_REF#refs/heads/}"
-          if [[ ! "$TAG" =~ ^v?[0-9] ]]; then
-            TAG="v1.0.0"
-          fi
-          echo "TAG=$TAG" >> $GITHUB_ENV
+          TAG="${GITHUB_REF##*/}"
+          case "$TAG" in
+            v*.*.*) ;;
+            *) TAG="v1.0.0" ;;
+          esac
           VERSION_CLEAN="${TAG#v}"
-          IFS='.' read -r M_PART N_PART P_PART <<< "$VERSION_CLEAN"
-          MAJOR=$(echo "$M_PART" | tr -dc '0-9')
-          MINOR=$(echo "$N_PART" | tr -dc '0-9')
-          PATCH=$(echo "$P_PART" | tr -dc '0-9')
-          MAJOR=${MAJOR:-1}
-          MINOR=${MINOR:-0}
-          PATCH=${PATCH:-0}
-          VERSION_CODE=$((MAJOR * 10000 + MINOR * 100 + PATCH))
+          echo "TAG=$TAG" >> $GITHUB_ENV
           echo "VERSION_NAME=$VERSION_CLEAN" >> $GITHUB_ENV
-          echo "VERSION_CODE=$VERSION_CODE" >> $GITHUB_ENV
-          echo "Tag: $TAG, VersionName: $VERSION_CLEAN, VersionCode: $VERSION_CODE"
+          echo "VERSION_CODE=10000" >> $GITHUB_ENV
+          echo "Tag: $TAG, VersionName: $VERSION_CLEAN, VersionCode: 10000"
 
       - name: Decode or Generate Release Keystore
         env:
           KEYSTORE_BASE64: ${{ secrets.KEYSTORE_BASE64 }}
           KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
           KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
-          KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
         run: |
           if [ -n "$KEYSTORE_BASE64" ]; then
             echo "Decoding release keystore from KEYSTORE_BASE64 secret..."
@@ -100,31 +89,6 @@ jobs:
         run: |
           ./gradlew assembleRelease --stacktrace 2>&1 | tee release.log
 
-      - name: Post Failure Log to PR
-        if: failure()
-        uses: actions/github-script@v7
-        with:
-          script: |
-            const fs = require('fs');
-            let log = '';
-            if (fs.existsSync('test.log')) {
-              const content = fs.readFileSync('test.log', 'utf8');
-              log += '### testDebugUnitTest Output (tail):\n```\n' + content.slice(-3000) + '\n```\n';
-            }
-            if (fs.existsSync('release.log')) {
-              const content = fs.readFileSync('release.log', 'utf8');
-              log += '### assembleRelease Output (tail):\n```\n' + content.slice(-3000) + '\n```\n';
-            }
-            if (!log) {
-              log = 'Step failure before compilation (check workflow run steps).';
-            }
-            await github.rest.issues.createComment({
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              issue_number: 1,
-              body: '🚨 **Release Build Failure Details:**\n\n' + log
-            });
-
       - name: Prepare Release Asset
         run: |
           APK_PATH=$(find app/build/outputs/apk/release -name "*.apk" | head -n 1)
@@ -146,3 +110,19 @@ jobs:
           prerelease: false
           generate_release_notes: true
           files: ${{ env.ASSET_NAME }}
+
+      - name: Upload Logs to Branch
+        if: always()
+        run: |
+          mkdir -p ci-logs
+          echo "Job Status: ${{ job.status }}" > ci-logs/status.txt
+          echo "TAG=$TAG, VERSION_NAME=$VERSION_NAME, VERSION_CODE=$VERSION_CODE" >> ci-logs/status.txt
+          ls -la spendwise-release.jks >> ci-logs/status.txt 2>&1 || true
+          [ -f test.log ] && cp test.log ci-logs/test.log || echo "No test.log" > ci-logs/test.log
+          [ -f release.log ] && cp release.log ci-logs/release.log || echo "No release.log" > ci-logs/release.log
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git checkout -B ci-debug-log
+          git add ci-logs
+          git commit -m "CI logs for run ${{ github.run_id }}" || true
+          git push -f origin ci-debug-log || true
