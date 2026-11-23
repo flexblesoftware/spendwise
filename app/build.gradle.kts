@@ -225,6 +225,6 @@ tasks.register("generateLauncherIcons") {
     }
 }
 
-tasks.named("preBuild") {
-    dependsOn("generateLauncherIcons")
+afterEvaluate {
+    tasks.findByName("preBuild")?.dependsOn("generateLauncherIcons")
 }
