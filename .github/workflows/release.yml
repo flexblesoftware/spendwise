@@ -62,51 +62,76 @@ jobs:
           KEYSTORE_BASE64: ${{ secrets.KEYSTORE_BASE64 }}
           KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
           KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
+          KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
         run: |
+          rm -f spendwise-release.jks temp-keystore.jks
           if [ -n "$KEYSTORE_BASE64" ]; then
             echo "Decoding fixed release keystore from KEYSTORE_BASE64 secret..."
             echo "$KEYSTORE_BASE64" | base64 -d > spendwise-release.jks
+            STORE_PASS="${KEYSTORE_PASSWORD:-SwKeyStore2026!7xQm9K4vLpW}"
+            KEY_PASS="${KEY_PASSWORD:-SwKeyAlias2026!9rVn8B3cTxM}"
+            ALIAS="${KEY_ALIAS:-spendwise}"
           else
             echo "Checking for persistent keystore on signing-keystore branch..."
-            git fetch origin signing-keystore:signing-keystore 2>/dev/null || true
-            if git show signing-keystore:spendwise-release.jks > spendwise-release.jks 2>/dev/null && [ -s spendwise-release.jks ]; then
-              echo "Reusing existing persistent release keystore from signing-keystore branch!"
-            else
+            KEYSTORE_RESTORED=0
+            if git fetch origin signing-keystore:refs/remotes/origin/signing-keystore 2>/dev/null; then
+              if git show origin/signing-keystore:spendwise-release.jks > temp-keystore.jks 2>/dev/null && [ -s temp-keystore.jks ]; then
+                mv temp-keystore.jks spendwise-release.jks
+                KEYSTORE_RESTORED=1
+                echo "Reused existing persistent release keystore from signing-keystore branch!"
+              fi
+            fi
+            rm -f temp-keystore.jks
+
+            STORE_PASS="${KEYSTORE_PASSWORD:-SwKeyStore2026!7xQm9K4vLpW}"
+            KEY_PASS="${KEY_PASSWORD:-SwKeyAlias2026!9rVn8B3cTxM}"
+            ALIAS="${KEY_ALIAS:-spendwise}"
+
+            if [ "$KEYSTORE_RESTORED" -eq 0 ]; then
               echo "Generating fixed release keystore..."
-              STORE_PASS="${KEYSTORE_PASSWORD:-SwKeyStore2026!7xQm9K4vLpW}"
-              ALIAS="${KEY_ALIAS:-spendwise}"
-              printf "yes\n" | keytool -genkeypair -v -keystore spendwise-release.jks -alias "$ALIAS" \
+              keytool -genkeypair -v -keystore spendwise-release.jks -alias "$ALIAS" \
                 -keyalg RSA -keysize 2048 -validity 10000 \
-                -storepass "$STORE_PASS" -keypass "$STORE_PASS" \
+                -storepass "$STORE_PASS" -keypass "$KEY_PASS" \
                 -dname "CN=MD Shahid, OU=SpendWise, O=SpendWise, L=Termux, ST=State, C=IN"
               
               # Persist keystore to dedicated branch so updates never fail with signature mismatch
-              CURRENT_BRANCH="${GITHUB_REF##*/}"
               git config user.name "github-actions[bot]"
               git config user.email "github-actions[bot]@users.noreply.github.com"
-              git branch -D signing-keystore 2>/dev/null || true
-              git checkout --orphan signing-keystore
-              git rm -rf . || true
-              git add -f spendwise-release.jks
-              git commit -m "chore: persist fixed release keystore across builds" || true
-              git push -f origin signing-keystore || true
-              git checkout "$CURRENT_BRANCH" || git checkout -
+              git worktree add /tmp/keystore-worktree -B signing-keystore 2>/dev/null || git checkout -B signing-keystore
+              if [ -d /tmp/keystore-worktree ]; then
+                cp spendwise-release.jks /tmp/keystore-worktree/
+                (cd /tmp/keystore-worktree && git add -f spendwise-release.jks && git commit -m "chore: persist fixed release keystore across builds" && git push -f origin signing-keystore) || true
+                git worktree remove --force /tmp/keystore-worktree || true
+              else
+                git add -f spendwise-release.jks
+                git commit -m "chore: persist fixed release keystore across builds" || true
+                git push -f origin signing-keystore || true
+                git checkout - || true
+              fi
             fi
-            echo "KEYSTORE_PASSWORD=SwKeyStore2026!7xQm9K4vLpW" >> $GITHUB_ENV
-            echo "KEY_PASSWORD=SwKeyAlias2026!9rVn8B3cTxM" >> $GITHUB_ENV
-            echo "KEY_ALIAS=spendwise" >> $GITHUB_ENV
           fi
+          echo "KEYSTORE_PASSWORD=$STORE_PASS" >> $GITHUB_ENV
+          echo "KEY_PASSWORD=$KEY_PASS" >> $GITHUB_ENV
+          echo "KEY_ALIAS=$ALIAS" >> $GITHUB_ENV
+          ls -la spendwise-release.jks
 
       - name: Bundle Real Typography & Offline Assets
         run: |
           mkdir -p app/src/main/res/font
-          # Download official font families from Google Fonts repository
-          echo "Downloading official UI font families..."
-          curl -sSL "https://github.com/google/fonts/raw/main/ofl/inter/Inter%5Bopsz%2Cwght%5D.ttf" -o app/src/main/res/font/inter.ttf || true
-          curl -sSL "https://github.com/google/fonts/raw/main/ofl/outfit/Outfit%5Bwght%5D.ttf" -o app/src/main/res/font/outfit.ttf || true
-          curl -sSL "https://github.com/google/fonts/raw/main/ofl/plusjakartasans/PlusJakartaSans%5Bwght%5D.ttf" -o app/src/main/res/font/plus_jakarta_sans.ttf || true
-          curl -sSL "https://github.com/google/fonts/raw/main/ofl/jetbrainsmono/JetBrainsMono%5Bwght%5D.ttf" -o app/src/main/res/font/jetbrains_mono.ttf || true
-          ls -lh app/src/main/res/font/
+          echo "Downloading official UI font families from Google Fonts repository..."
+          curl -sSL -L "https://raw.githubusercontent.com/google/fonts/main/ofl/inter/Inter%5Bopsz%2Cwght%5D.ttf" -o app/src/main/res/font/inter.ttf || true
+          curl -sSL -L "https://raw.githubusercontent.com/google/fonts/main/ofl/outfit/Outfit%5Bwght%5D.ttf" -o app/src/main/res/font/outfit.ttf || true
+          curl -sSL -L "https://raw.githubusercontent.com/google/fonts/main/ofl/plusjakartasans/PlusJakartaSans%5Bwght%5D.ttf" -o app/src/main/res/font/plus_jakarta_sans.ttf || true
+          curl -sSL -L "https://raw.githubusercontent.com/google/fonts/main/ofl/jetbrainsmono/JetBrainsMono%5Bwght%5D.ttf" -o app/src/main/res/font/jetbrains_mono.ttf || true
+          for f in app/src/main/res/font/*.ttf; do
+            if [ -f "$f" ]; then
+              if head -c 20 "$f" | grep -qi "<!DOCTYPE\|<html"; then
+                echo "Removing non-binary font download: $f"
+                rm -f "$f"
+              fi
+            fi
+          done
+          ls -lh app/src/main/res/font/ || true
 
       - name: Run Unit Tests
         run: |
@@ -116,9 +141,9 @@ jobs:
       - name: Build Signed Release APK
         env:
           KEYSTORE_FILE: ${{ github.workspace }}/spendwise-release.jks
-          KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD || env.KEYSTORE_PASSWORD || 'SwKeyStore2026!7xQm9K4vLpW' }}
-          KEY_ALIAS: ${{ secrets.KEY_ALIAS || env.KEY_ALIAS || 'spendwise' }}
-          KEY_PASSWORD: ${{ secrets.KEY_PASSWORD || env.KEY_PASSWORD || 'SwKeyAlias2026!9rVn8B3cTxM' }}
+          KEYSTORE_PASSWORD: ${{ env.KEYSTORE_PASSWORD }}
+          KEY_ALIAS: ${{ env.KEY_ALIAS }}
+          KEY_PASSWORD: ${{ env.KEY_PASSWORD }}
           VERSION_NAME: ${{ env.VERSION_NAME }}
           VERSION_CODE: ${{ env.VERSION_CODE }}
         run: |
