@@ -52,12 +52,11 @@ jobs:
 
       - name: Setup Gradle 8.11.1
         run: |
-          if [ ! -f gradle/wrapper/gradle-wrapper.jar ]; then
-            wget -q https://services.gradle.org/distributions/gradle-8.11.1-bin.zip
-            unzip -q gradle-8.11.1-bin.zip
-            ./gradle-8.11.1/bin/gradle wrapper || true
-          fi
-          chmod +x gradlew
+          wget -q https://services.gradle.org/distributions/gradle-8.11.1-bin.zip
+          unzip -q gradle-8.11.1-bin.zip
+          echo "$GITHUB_WORKSPACE/gradle-8.11.1/bin" >> $GITHUB_PATH
+          sudo ln -sf "$GITHUB_WORKSPACE/gradle-8.11.1/bin/gradle" /usr/local/bin/gradle
+          gradle --version
 
       - name: Decode or Restore Fixed Release Keystore
         env:
@@ -138,7 +137,7 @@ jobs:
       - name: Run Unit Tests
         run: |
           set -eo pipefail
-          ./gradlew testDebugUnitTest --stacktrace 2>&1 | tee test.log
+          gradle testDebugUnitTest --stacktrace 2>&1 | tee test.log
 
       - name: Build Signed Release APK
         env:
@@ -150,7 +149,7 @@ jobs:
           VERSION_CODE: ${{ env.VERSION_CODE }}
         run: |
           set -eo pipefail
-          ./gradlew assembleRelease --stacktrace 2>&1 | tee release.log
+          gradle assembleRelease --stacktrace 2>&1 | tee release.log
 
       - name: Prepare Release Asset
         run: |
