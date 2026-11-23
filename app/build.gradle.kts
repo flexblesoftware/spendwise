@@ -123,8 +123,12 @@ dependencies {
     implementation(libs.androidx.camera.lifecycle)
     implementation(libs.androidx.camera.view)
 
-    // Biometrics
+    // Biometrics & Security
     implementation(libs.androidx.biometric)
+    implementation(libs.androidx.security.crypto)
+
+    // Lottie Animations
+    implementation(libs.lottie.compose)
 
     // Networking
     implementation(libs.okhttp)

@@ -6,6 +6,7 @@ import androidx.room.RoomDatabase
 import androidx.sqlite.db.SupportSQLiteDatabase
 import com.shahid.spendwise.data.local.SpendWiseDatabase
 import com.shahid.spendwise.data.local.dao.*
+import com.shahid.spendwise.data.local.migration.SpendWiseMigrations
 import com.shahid.spendwise.data.repository.SpendWiseRepository
 import com.shahid.spendwise.data.repository.SpendWiseRepositoryImpl
 import dagger.Module
@@ -47,18 +48,22 @@ object AppModule {
         ).addCallback(object : RoomDatabase.Callback() {
             override fun onCreate(db: SupportSQLiteDatabase) {
                 super.onCreate(db)
-                CoroutineScope(Dispatchers.IO).launch {
-                    val prePopulatedDb = Room.databaseBuilder(
-                        context,
-                        SpendWiseDatabase::class.java,
-                        SpendWiseDatabase.DATABASE_NAME
-                    ).build()
-
-                    prePopulatedDb.categoryDao().insertAll(SpendWiseDatabase.DEFAULT_CATEGORIES)
-                    prePopulatedDb.currencyDao().insertAll(SpendWiseDatabase.DEFAULT_CURRENCIES)
+                // Seed default categories
+                for (cat in SpendWiseDatabase.DEFAULT_CATEGORIES) {
+                    db.execSQL(
+                        "INSERT OR IGNORE INTO categories (id, name, iconName, colorHex, type, isTaxDeductible) VALUES (?, ?, ?, ?, ?, ?)",
+                        arrayOf(cat.id, cat.name, cat.iconName, cat.colorHex, cat.type.name, if (cat.isTaxDeductible) 1 else 0)
+                    )
+                }
+                // Seed default currencies
+                for (curr in SpendWiseDatabase.DEFAULT_CURRENCIES) {
+                    db.execSQL(
+                        "INSERT OR IGNORE INTO currency_rates (currencyCode, rateToBase, lastUpdatedMillis) VALUES (?, ?, ?)",
+                        arrayOf(curr.currencyCode, curr.rateToBase, curr.lastUpdatedMillis)
+                    )
                 }
             }
-        }).fallbackToDestructiveMigration()
+        }).addMigrations(*SpendWiseMigrations.ALL_MIGRATIONS)
             .build()
     }
 
