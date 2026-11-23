@@ -34,6 +34,12 @@ data class SpendWiseBackupData(
     val filters: List<SavedFilterEntity>
 )
 
+data class CsvImportResult(
+    val importedCount: Int,
+    val duplicatesSkippedCount: Int,
+    val newTransactions: List<TransactionEntity>
+)
+
 object ExportImportHelper {
 
     private val json = Json {
@@ -42,7 +48,11 @@ object ExportImportHelper {
     }
 
     private val dateFormat = SimpleDateFormat("yyyy-MM-dd HH:mm", Locale.US)
+    private val fileDateFormat = SimpleDateFormat("yyyyMMdd_HHmmss", Locale.US)
 
+    /**
+     * Creates a ZIP archive containing the JSON backup.
+     */
     fun createZipBackup(backupData: SpendWiseBackupData, outputStream: OutputStream) {
         val jsonString = json.encodeToString(backupData)
         ZipOutputStream(BufferedOutputStream(outputStream)).use { zipOut ->
@@ -54,12 +64,16 @@ object ExportImportHelper {
         }
     }
 
+    /**
+     * Reads a ZIP backup or raw JSON and parses SpendWiseBackupData.
+     */
     fun parseBackup(inputStream: InputStream): SpendWiseBackupData {
         val pushbackStream = PushbackInputStream(inputStream, 2)
         val header = ByteArray(2)
         val read = pushbackStream.read(header)
         pushbackStream.unread(header, 0, read)
 
+        // Check if ZIP (PK..)
         val isZip = header[0] == 0x50.toByte() && header[1] == 0x4B.toByte()
 
         val jsonContent = if (isZip) {
@@ -78,6 +92,9 @@ object ExportImportHelper {
         return json.decodeFromString(jsonContent)
     }
 
+    /**
+     * Exports transactions to CSV string.
+     */
     fun exportToCsv(
         transactions: List<TransactionEntity>,
         categoryMap: Map<Long, String>
@@ -98,6 +115,149 @@ object ExportImportHelper {
         return sb.toString()
     }
 
+    /**
+     * Parses CSV rows with mapped column indices and detects duplicates.
+     */
+    fun parseCsvWithDuplicateDetection(
+        csvContent: String,
+        amountCol: Int,
+        categoryCol: Int,
+        dateCol: Int,
+        noteCol: Int,
+        typeCol: Int,
+        categories: List<CategoryEntity>,
+        existingTransactions: List<TransactionEntity>,
+        currency: String = "USD"
+    ): CsvImportResult {
+        val lines = csvContent.lines().filter { it.isNotBlank() }
+        if (lines.size <= 1) return CsvImportResult(0, 0, emptyList())
+
+        val dataLines = lines.drop(1)
+        val newTransactions = mutableListOf<TransactionEntity>()
+        var duplicatesCount = 0
+
+        val catMapByName = categories.associateBy { it.name.lowercase().trim() }
+        val defaultCatId = categories.firstOrNull()?.id ?: 1L
+
+        for (line in dataLines) {
+            val parts = line.split(",").map { it.trim().trim('"') }
+            val maxCol = maxOf(amountCol, categoryCol, dateCol, noteCol, typeCol)
+            if (parts.size <= maxCol) continue
+
+            val amountStr = parts.getOrNull(amountCol) ?: "0"
+            val amountMinor = Money.parseMajor(amountStr, currency).amountMinor
+            if (amountMinor <= 0L) continue
+
+            val catName = (parts.getOrNull(categoryCol) ?: "General").lowercase().trim()
+            val categoryId = catMapByName[catName]?.id ?: defaultCatId
+
+            val dateStr = parts.getOrNull(dateCol) ?: ""
+            val note = parts.getOrNull(noteCol) ?: ""
+            val typeStr = (parts.getOrNull(typeCol) ?: "EXPENSE").uppercase()
+
+            val parsedDate = runCatching {
+                dateFormat.parse(dateStr)?.time
+            }.getOrNull() ?: runCatching {
+                SimpleDateFormat("yyyy-MM-dd", Locale.US).parse(dateStr)?.time
+            }.getOrNull() ?: System.currentTimeMillis()
+
+            val txType = if (typeStr.contains("INCOME")) TransactionType.INCOME else TransactionType.EXPENSE
+
+            // Duplicate detection: same amount, type, note and within 24 hours of timestamp
+            val isDuplicate = existingTransactions.any { existing ->
+                existing.amountMinor == amountMinor &&
+                existing.type == txType &&
+                existing.note.equals(note, ignoreCase = true) &&
+                kotlin.math.abs(existing.timestampMillis - parsedDate) < 86400000L
+            } || newTransactions.any { existing ->
+                existing.amountMinor == amountMinor &&
+                existing.type == txType &&
+                existing.note.equals(note, ignoreCase = true) &&
+                kotlin.math.abs(existing.timestampMillis - parsedDate) < 86400000L
+            }
+
+            if (isDuplicate) {
+                duplicatesCount++
+            } else {
+                newTransactions.add(
+                    TransactionEntity(
+                        type = txType,
+                        amountMinor = amountMinor,
+                        currency = currency,
+                        categoryId = categoryId,
+                        timestampMillis = parsedDate,
+                        note = note,
+                        tags = listOf("csv-import"),
+                        isTaxRelevant = false
+                    )
+                )
+            }
+        }
+
+        return CsvImportResult(
+            importedCount = newTransactions.size,
+            duplicatesSkippedCount = duplicatesCount,
+            newTransactions = newTransactions
+        )
+    }
+
+    /**
+     * Parses CSV rows with mapped column indices.
+     */
+    fun parseCsv(
+        csvContent: String,
+        amountCol: Int,
+        categoryCol: Int,
+        dateCol: Int,
+        noteCol: Int,
+        typeCol: Int,
+        categories: List<CategoryEntity>,
+        currency: String = "USD"
+    ): List<TransactionEntity> {
+        val lines = csvContent.lines().filter { it.isNotBlank() }
+        if (lines.size <= 1) return emptyList()
+
+        val dataLines = lines.drop(1)
+        val results = mutableListOf<TransactionEntity>()
+
+        for (line in dataLines) {
+            val parts = line.split(",").map { it.trim().trim('"') }
+            if (parts.size <= maxOf(amountCol, categoryCol, dateCol, noteCol, typeCol)) continue
+
+            val amountStr = parts.getOrNull(amountCol) ?: "0"
+            val amountMinor = Money.parseMajor(amountStr, currency).amountMinor
+            val catName = parts.getOrNull(categoryCol) ?: "General"
+            val dateStr = parts.getOrNull(dateCol) ?: ""
+            val note = parts.getOrNull(noteCol) ?: ""
+            val typeStr = parts.getOrNull(typeCol)?.uppercase() ?: "EXPENSE"
+
+            val matchedCat = categories.find { it.name.equals(catName, ignoreCase = true) } ?: categories.firstOrNull()
+            val categoryId = matchedCat?.id ?: 1L
+
+            val parsedDate = runCatching { dateFormat.parse(dateStr)?.time }.getOrNull()
+                ?: System.currentTimeMillis()
+
+            val txType = if (typeStr.contains("INCOME")) TransactionType.INCOME else TransactionType.EXPENSE
+
+            results.add(
+                TransactionEntity(
+                    type = txType,
+                    amountMinor = amountMinor,
+                    currency = currency,
+                    categoryId = categoryId,
+                    timestampMillis = parsedDate,
+                    note = note,
+                    tags = emptyList(),
+                    isTaxRelevant = false
+                )
+            )
+        }
+        return results
+    }
+
+    /**
+     * Generates a standard PDF document for Expense / Tax Reports.
+     */
     fun generatePdfReport(
         title: String,
         transactions: List<TransactionEntity>,
@@ -106,7 +266,7 @@ object ExportImportHelper {
         outputStream: OutputStream
     ) {
         val document = PdfDocument()
-        val pageInfo = PdfDocument.PageInfo.Builder(595, 842, 1).create()
+        val pageInfo = PdfDocument.PageInfo.Builder(595, 842, 1).create() // A4 standard size
         val page = document.startPage(pageInfo)
         val canvas = page.canvas
 
@@ -143,6 +303,7 @@ object ExportImportHelper {
         canvas.drawLine(40f, y, 555f, y, paintLine)
         y += 18f
 
+        // Table Header
         canvas.drawText("Date", 40f, y, paintHeader)
         canvas.drawText("Category", 130f, y, paintHeader)
         canvas.drawText("Note", 250f, y, paintHeader)
@@ -153,7 +314,7 @@ object ExportImportHelper {
 
         var totalMinor = 0L
 
-        for (tx in transactions.take(35)) {
+        for (tx in transactions.take(35)) { // First page rows
             val dateStr = SimpleDateFormat("yyyy-MM-dd", Locale.US).format(Date(tx.timestampMillis))
             val catName = categoryMap[tx.categoryId] ?: "Unknown"
             val noteClean = if (tx.note.length > 28) tx.note.take(25) + "..." else tx.note

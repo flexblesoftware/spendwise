@@ -107,6 +107,21 @@ class AddEditTransactionViewModel @Inject constructor(
         _uiState.update { it.copy(tags = it.tags - tag) }
     }
 
+    fun createCategory(name: String, iconName: String, colorHex: String) {
+        val currentType = _uiState.value.type
+        viewModelScope.launch {
+            val newId = repository.insertCategory(
+                CategoryEntity(
+                    name = name.trim(),
+                    iconName = iconName,
+                    colorHex = colorHex,
+                    type = currentType
+                )
+            )
+            _uiState.update { it.copy(selectedCategoryId = newId) }
+        }
+    }
+
     fun save() {
         val state = _uiState.value
         val amountMinor = Money.parseMajor(state.amountMajorStr, state.currency).amountMinor
@@ -140,7 +155,6 @@ class AddEditTransactionViewModel @Inject constructor(
     fun delete() {
         val id = _uiState.value.id ?: return
         viewModelScope.launch {
-            _uiState.value.receiptPhotoPath?.let { runCatching { File(it).delete() } }
             repository.deleteTransactionById(id)
             _uiState.update { it.copy(isDeleted = true) }
         }

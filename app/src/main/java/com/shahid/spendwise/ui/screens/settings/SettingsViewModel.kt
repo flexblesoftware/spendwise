@@ -6,6 +6,7 @@ import com.shahid.spendwise.data.local.entity.CurrencyRateEntity
 import com.shahid.spendwise.data.repository.PreferencesRepository
 import com.shahid.spendwise.data.repository.SpendWiseRepository
 import com.shahid.spendwise.update.UpdateManager
+import com.shahid.spendwise.update.UpdateUiState
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
@@ -16,8 +17,7 @@ data class SettingsUiState(
     val isBiometricEnabled: Boolean = false,
     val biometricTimeoutMinutes: Int = 0,
     val themeMode: String = "SYSTEM",
-    val currencyRates: List<CurrencyRateEntity> = emptyList(),
-    val isCheckingUpdate: Boolean = false
+    val currencyRates: List<CurrencyRateEntity> = emptyList()
 )
 
 @HiltViewModel
@@ -26,6 +26,8 @@ class SettingsViewModel @Inject constructor(
     private val repository: SpendWiseRepository,
     val updateManager: UpdateManager
 ) : ViewModel() {
+
+    val updateState: StateFlow<UpdateUiState> = updateManager.updateState
 
     val uiState: StateFlow<SettingsUiState> = combine(
         preferencesRepository.baseCurrency,

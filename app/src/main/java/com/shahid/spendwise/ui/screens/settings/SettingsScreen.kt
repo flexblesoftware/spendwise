@@ -19,6 +19,8 @@ import androidx.compose.ui.unit.sp
 import androidx.fragment.app.FragmentActivity
 import com.shahid.spendwise.BuildConfig
 import com.shahid.spendwise.security.BiometricHelper
+import com.shahid.spendwise.ui.theme.PrimaryEmerald
+import com.shahid.spendwise.update.UpdateUiState
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -28,6 +30,7 @@ fun SettingsScreen(
     onNavigateToBackup: () -> Unit
 ) {
     val uiState by viewModel.uiState.collectAsState()
+    val updateState by viewModel.updateState.collectAsState()
     val context = LocalContext.current
     val activity = context as? FragmentActivity
 
@@ -53,6 +56,38 @@ fun SettingsScreen(
                 .padding(16.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
+            // Theme Section
+            item {
+                Text("Appearance & Theme", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+            }
+
+            item {
+                Surface(
+                    shape = RoundedCornerShape(12.dp),
+                    color = MaterialTheme.colorScheme.surface,
+                    tonalElevation = 2.dp,
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Column(modifier = Modifier.padding(16.dp)) {
+                        Text("App Theme", style = MaterialTheme.typography.bodyLarge, fontWeight = FontWeight.SemiBold)
+                        Text("Choose between system default, light, or dark mode", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        Spacer(modifier = Modifier.height(12.dp))
+                        SingleChoiceSegmentedButtonRow(modifier = Modifier.fillMaxWidth()) {
+                            listOf("SYSTEM" to "System", "LIGHT" to "Light", "DARK" to "Dark").forEachIndexed { index, (mode, label) ->
+                                SegmentedButton(
+                                    selected = uiState.themeMode == mode,
+                                    onClick = { viewModel.setThemeMode(mode) },
+                                    shape = SegmentedButtonDefaults.itemShape(index = index, count = 3)
+                                ) {
+                                    Text(label, fontWeight = FontWeight.Medium)
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+
+            // Security & Biometric Lock Section
             item {
                 Text("Security & Privacy", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
             }
@@ -83,7 +118,7 @@ fun SettingsScreen(
                                             title = "Enable Biometric Lock",
                                             subtitle = "Authenticate to confirm biometric security",
                                             onSuccess = { viewModel.setBiometricEnabled(true) },
-                                            onError = { }
+                                            onError = { /* failed */ }
                                         )
                                     } else {
                                         viewModel.setBiometricEnabled(false)
@@ -113,6 +148,7 @@ fun SettingsScreen(
                 }
             }
 
+            // Currency & Conversion Section
             item {
                 Text("Currency & Rates", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
             }
@@ -142,7 +178,7 @@ fun SettingsScreen(
                         }
 
                         Spacer(modifier = Modifier.height(12.dp))
-                        Text("Offline Exchange Rates (1 [Currency] = [Rate] ${uiState.baseCurrency}):", style = MaterialTheme.typography.bodySmall)
+                        Text("Offline Exchange Rates (1 [Currency] = [Rate] ${uiState.baseCurrency}):", style = MaterialTheme.typography.bodySmall, fontWeight = FontWeight.SemiBold)
                         Spacer(modifier = Modifier.height(6.dp))
 
                         uiState.currencyRates.filter { it.currencyCode != uiState.baseCurrency }.forEach { rate ->
@@ -163,6 +199,7 @@ fun SettingsScreen(
                 }
             }
 
+            // Backup & Data
             item {
                 Text("Data Management", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
             }
@@ -179,6 +216,7 @@ fun SettingsScreen(
                 }
             }
 
+            // Updates & App Info
             item {
                 Text("App Updates & Information", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
             }
@@ -196,18 +234,113 @@ fun SettingsScreen(
                             horizontalArrangement = Arrangement.SpaceBetween,
                             verticalAlignment = Alignment.CenterVertically
                         ) {
-                            Column {
+                            Column(modifier = Modifier.weight(1f)) {
                                 Text("SpendWise v${BuildConfig.VERSION_NAME}", fontWeight = FontWeight.Bold)
-                                Text("Offline-First Android Architecture", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                                Text("Build Code: ${BuildConfig.VERSION_CODE} • Offline First", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                             }
                             Button(
                                 onClick = { viewModel.checkForUpdates() },
-                                shape = RoundedCornerShape(8.dp)
+                                shape = RoundedCornerShape(8.dp),
+                                enabled = updateState !is UpdateUiState.Checking
                             ) {
-                                Icon(Icons.Default.SystemUpdate, contentDescription = null, modifier = Modifier.size(16.dp))
-                                Spacer(modifier = Modifier.width(6.dp))
-                                Text("Check for Updates")
+                                if (updateState is UpdateUiState.Checking) {
+                                    CircularProgressIndicator(modifier = Modifier.size(16.dp), strokeWidth = 2.dp, color = MaterialTheme.colorScheme.onPrimary)
+                                    Spacer(modifier = Modifier.width(6.dp))
+                                    Text("Checking...")
+                                } else {
+                                    Icon(Icons.Default.SystemUpdate, contentDescription = null, modifier = Modifier.size(16.dp))
+                                    Spacer(modifier = Modifier.width(6.dp))
+                                    Text("Check for Updates")
+                                }
                             }
+                        }
+
+                        // Live Update Feedback Section
+                        when (val state = updateState) {
+                            is UpdateUiState.Checking -> {
+                                Spacer(modifier = Modifier.height(12.dp))
+                                Row(
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    modifier = Modifier.fillMaxWidth()
+                                ) {
+                                    CircularProgressIndicator(modifier = Modifier.size(14.dp), strokeWidth = 2.dp)
+                                    Spacer(modifier = Modifier.width(8.dp))
+                                    Text("Connecting to GitHub Releases...", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.primary)
+                                }
+                            }
+
+                            is UpdateUiState.UpToDate -> {
+                                Spacer(modifier = Modifier.height(12.dp))
+                                Surface(
+                                    color = PrimaryEmerald.copy(alpha = 0.12f),
+                                    shape = RoundedCornerShape(8.dp),
+                                    modifier = Modifier.fillMaxWidth()
+                                ) {
+                                    Row(
+                                        modifier = Modifier.padding(10.dp),
+                                        verticalAlignment = Alignment.CenterVertically
+                                    ) {
+                                        Icon(Icons.Default.CheckCircle, contentDescription = null, tint = PrimaryEmerald, modifier = Modifier.size(20.dp))
+                                        Spacer(modifier = Modifier.width(8.dp))
+                                        Column {
+                                            Text("SpendWise is up to date!", fontWeight = FontWeight.SemiBold, fontSize = 13.sp, color = PrimaryEmerald)
+                                            Text("Latest public release: ${state.latestTag}", fontSize = 11.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                                        }
+                                    }
+                                }
+                            }
+
+                            is UpdateUiState.UpdateRequired -> {
+                                Spacer(modifier = Modifier.height(12.dp))
+                                Surface(
+                                    color = MaterialTheme.colorScheme.primaryContainer,
+                                    shape = RoundedCornerShape(8.dp),
+                                    modifier = Modifier.fillMaxWidth()
+                                ) {
+                                    Row(
+                                        modifier = Modifier.padding(10.dp),
+                                        horizontalArrangement = Arrangement.SpaceBetween,
+                                        verticalAlignment = Alignment.CenterVertically
+                                    ) {
+                                        Column(modifier = Modifier.weight(1f)) {
+                                            Text("Update Available: ${state.release.tagName}!", fontWeight = FontWeight.Bold, fontSize = 13.sp)
+                                            Text("New release ready to download and install", fontSize = 11.sp)
+                                        }
+                                        Button(
+                                            onClick = { viewModel.updateManager.startDownload() },
+                                            colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary)
+                                        ) {
+                                            Text("Update Now", fontSize = 12.sp)
+                                        }
+                                    }
+                                }
+                            }
+
+                            is UpdateUiState.Error -> {
+                                Spacer(modifier = Modifier.height(12.dp))
+                                Surface(
+                                    color = MaterialTheme.colorScheme.errorContainer,
+                                    shape = RoundedCornerShape(8.dp),
+                                    modifier = Modifier.fillMaxWidth()
+                                ) {
+                                    Row(
+                                        modifier = Modifier.padding(10.dp),
+                                        verticalAlignment = Alignment.CenterVertically
+                                    ) {
+                                        Icon(Icons.Default.Warning, contentDescription = null, tint = MaterialTheme.colorScheme.error, modifier = Modifier.size(20.dp))
+                                        Spacer(modifier = Modifier.width(8.dp))
+                                        Column(modifier = Modifier.weight(1f)) {
+                                            Text("Update Check Failed", fontWeight = FontWeight.SemiBold, fontSize = 13.sp, color = MaterialTheme.colorScheme.error)
+                                            Text(state.message, fontSize = 11.sp, color = MaterialTheme.colorScheme.onErrorContainer)
+                                        }
+                                        TextButton(onClick = { viewModel.checkForUpdates() }) {
+                                            Text("Retry", fontWeight = FontWeight.Bold)
+                                        }
+                                    }
+                                }
+                            }
+
+                            else -> Unit
                         }
                     }
                 }
@@ -216,6 +349,7 @@ fun SettingsScreen(
             item { Spacer(modifier = Modifier.height(64.dp)) }
         }
 
+        // Base Currency Picker Dialog
         if (showCurrencyDialog) {
             val currencies = listOf("USD", "EUR", "GBP", "INR", "JPY", "CAD", "AUD")
             AlertDialog(
@@ -246,6 +380,7 @@ fun SettingsScreen(
             )
         }
 
+        // Edit Exchange Rate Dialog
         editingCurrencyCode?.let { code ->
             var rateStr by remember { mutableStateOf("") }
             AlertDialog(

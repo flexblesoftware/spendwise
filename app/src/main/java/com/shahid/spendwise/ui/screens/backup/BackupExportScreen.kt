@@ -14,6 +14,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import com.shahid.spendwise.ui.theme.PrimaryEmerald
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -25,6 +26,7 @@ fun BackupExportScreen(
     val uiState by viewModel.uiState.collectAsState()
     val context = LocalContext.current
 
+    // SAF Launchers
     val exportZipLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.CreateDocument("application/zip")
     ) { uri ->
@@ -41,6 +43,12 @@ fun BackupExportScreen(
         contract = ActivityResultContracts.CreateDocument("text/csv")
     ) { uri ->
         uri?.let { viewModel.exportCsv(context, it) }
+    }
+
+    val importCsvLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.OpenDocument()
+    ) { uri ->
+        uri?.let { viewModel.onCsvFileSelected(context, it) }
     }
 
     val exportPdfLauncher = rememberLauncherForActivityResult(
@@ -74,6 +82,7 @@ fun BackupExportScreen(
                 .padding(16.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
+            // Status Feedback Card
             if (uiState.statusMessage != null) {
                 item {
                     Card(
@@ -105,6 +114,7 @@ fun BackupExportScreen(
                 }
             }
 
+            // Local Full Backup (SAF ZIP)
             item {
                 Text("Full Database Backup & Restore", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
                 Spacer(modifier = Modifier.height(4.dp))
@@ -144,28 +154,45 @@ fun BackupExportScreen(
 
             item { HorizontalDivider(modifier = Modifier.padding(vertical = 4.dp)) }
 
+            // CSV & Spreadsheet Export / Import
             item {
-                Text("Spreadsheet & CSV Export", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+                Text("Spreadsheet & CSV Management", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
                 Spacer(modifier = Modifier.height(4.dp))
                 Text(
-                    text = "Export your expenses to standard CSV format compatible with Microsoft Excel, Google Sheets, and LibreOffice.",
+                    text = "Export transactions to spreadsheet or import external bank CSV files with custom column mapping and automatic duplicate detection.",
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
                 Spacer(modifier = Modifier.height(10.dp))
-                Button(
-                    onClick = { exportCsvLauncher.launch("SpendWise_Transactions_${System.currentTimeMillis()}.csv") },
-                    modifier = Modifier.fillMaxWidth().height(50.dp),
-                    shape = RoundedCornerShape(10.dp)
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(12.dp)
                 ) {
-                    Icon(Icons.Default.TableChart, contentDescription = null)
-                    Spacer(modifier = Modifier.width(8.dp))
-                    Text("Export All Transactions to CSV")
+                    Button(
+                        onClick = { exportCsvLauncher.launch("SpendWise_Transactions_${System.currentTimeMillis()}.csv") },
+                        modifier = Modifier.weight(1f).height(50.dp),
+                        shape = RoundedCornerShape(10.dp)
+                    ) {
+                        Icon(Icons.Default.TableChart, contentDescription = null)
+                        Spacer(modifier = Modifier.width(6.dp))
+                        Text("Export CSV")
+                    }
+
+                    OutlinedButton(
+                        onClick = { importCsvLauncher.launch(arrayOf("text/comma-separated-values", "text/csv", "application/csv", "*/*")) },
+                        modifier = Modifier.weight(1f).height(50.dp),
+                        shape = RoundedCornerShape(10.dp)
+                    ) {
+                        Icon(Icons.Default.FileUpload, contentDescription = null)
+                        Spacer(modifier = Modifier.width(6.dp))
+                        Text("Import CSV")
+                    }
                 }
             }
 
             item { HorizontalDivider(modifier = Modifier.padding(vertical = 4.dp)) }
 
+            // PDF Reports & Tax Summary
             item {
                 Text("PDF Reports & Tax Deductions", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
                 Spacer(modifier = Modifier.height(4.dp))
@@ -200,6 +227,97 @@ fun BackupExportScreen(
             }
 
             item { Spacer(modifier = Modifier.height(64.dp)) }
+        }
+
+        // CSV Column Mapping Dialog
+        uiState.csvPreview?.let { preview ->
+            var amountCol by remember { mutableStateOf(preview.initialAmountCol) }
+            var categoryCol by remember { mutableStateOf(preview.initialCategoryCol) }
+            var dateCol by remember { mutableStateOf(preview.initialDateCol) }
+            var noteCol by remember { mutableStateOf(preview.initialNoteCol) }
+            var typeCol by remember { mutableStateOf(preview.initialTypeCol) }
+
+            AlertDialog(
+                onDismissRequest = { viewModel.dismissCsvDialog() },
+                title = { Text("CSV Column Mapping", fontWeight = FontWeight.Bold) },
+                text = {
+                    Column(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(vertical = 4.dp),
+                        verticalArrangement = Arrangement.spacedBy(10.dp)
+                    ) {
+                        Text(
+                            text = "Map the CSV columns to match transaction fields. Duplicate transactions will be detected and skipped automatically.",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+
+                        ColumnMappingRow("Amount Column", amountCol, preview.headers) { amountCol = it }
+                        ColumnMappingRow("Category Column", categoryCol, preview.headers) { categoryCol = it }
+                        ColumnMappingRow("Date Column", dateCol, preview.headers) { dateCol = it }
+                        ColumnMappingRow("Note Column", noteCol, preview.headers) { noteCol = it }
+                        ColumnMappingRow("Type Column", typeCol, preview.headers) { typeCol = it }
+                    }
+                },
+                confirmButton = {
+                    Button(
+                        onClick = {
+                            viewModel.executeCsvImport(
+                                amountCol = amountCol,
+                                categoryCol = categoryCol,
+                                dateCol = dateCol,
+                                noteCol = noteCol,
+                                typeCol = typeCol
+                            )
+                        }
+                    ) {
+                        Text("Import & Skip Duplicates")
+                    }
+                },
+                dismissButton = {
+                    TextButton(onClick = { viewModel.dismissCsvDialog() }) {
+                        Text("Cancel")
+                    }
+                }
+            )
+        }
+    }
+}
+
+@Composable
+fun ColumnMappingRow(
+    label: String,
+    selectedIndex: Int,
+    headers: List<String>,
+    onSelect: (Int) -> Unit
+) {
+    var expanded by remember { mutableStateOf(false) }
+    val currentHeader = headers.getOrNull(selectedIndex) ?: "Column $selectedIndex"
+
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.SpaceBetween,
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Text(label, style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.Medium)
+        Box {
+            AssistChip(
+                onClick = { expanded = true },
+                label = { Text(currentHeader, fontSize = 12.sp) },
+                trailingIcon = { Icon(Icons.Default.ArrowDropDown, contentDescription = null, modifier = Modifier.size(16.dp)) }
+            )
+            DropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
+                headers.forEachIndexed { index, header ->
+                    DropdownMenuItem(
+                        text = { Text("[$index] $header") },
+                        onClick = {
+                            onSelect(index)
+                            expanded = false
+                        }
+                    )
+                }
+            }
         }
     }
 }

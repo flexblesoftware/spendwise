@@ -51,18 +51,27 @@ class MainActivity : FragmentActivity() {
                 val updateState by updateManager.updateState.collectAsState()
                 var isAppUnlocked by remember { mutableStateOf(!preferencesRepository.isUnlockRequired()) }
 
+                // Check for updates automatically on app open
+                LaunchedEffect(Unit) {
+                    updateManager.checkForUpdates(forceCheck = false)
+                }
+
+                // Check update blocking condition:
+                // Mandatory update blocks app if update is required, downloading, ready to install, or download errored
                 val isBlockingUpdate = updateState is UpdateUiState.UpdateRequired ||
                         updateState is UpdateUiState.Downloading ||
                         updateState is UpdateUiState.ReadyToInstall ||
-                        updateState is UpdateUiState.Error
+                        (updateState is UpdateUiState.Error && (updateState as UpdateUiState.Error).isForcedUpdateError)
 
                 if (isBlockingUpdate) {
+                    // Full Screen Blocking Update UI - rest of app is unreachable
                     UpdateScreen(
                         state = updateState,
                         onStartDownload = { updateManager.startDownload() },
                         onRetry = { updateManager.retry() }
                     )
                 } else if (!isAppUnlocked) {
+                    // Biometric Lock Screen on App Open
                     LockScreen(
                         onUnlockRequested = {
                             if (BiometricHelper.isBiometricAvailable(this)) {
@@ -74,7 +83,7 @@ class MainActivity : FragmentActivity() {
                                         preferencesRepository.updateLastUnlockTimestamp()
                                         isAppUnlocked = true
                                     },
-                                    onError = { }
+                                    onError = { /* Keep locked */ }
                                 )
                             } else {
                                 preferencesRepository.updateLastUnlockTimestamp()
@@ -83,6 +92,7 @@ class MainActivity : FragmentActivity() {
                         }
                     )
                 } else {
+                    // Main App Content
                     val navController = rememberNavController()
                     SpendWiseNavGraph(navController = navController)
                 }

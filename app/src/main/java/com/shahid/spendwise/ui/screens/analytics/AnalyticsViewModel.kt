@@ -49,61 +49,72 @@ class AnalyticsViewModel @Inject constructor(
         repository.getTransactions(includeLocked = false),
         repository.getAllCategories(),
         preferencesRepository.baseCurrency,
+        repository.getAllRates(),
         _isYearly
-    ) { transactions, categories, baseCurrency, isYearly ->
+    ) { transactions, categories, baseCurrency, rates, isYearly ->
         val catMap = categories.associateBy { it.id }
+        val rateMap = rates.associateBy { it.currencyCode }
 
         val cal = Calendar.getInstance()
         val currentYear = cal.get(Calendar.YEAR)
         val currentMonth = cal.get(Calendar.MONTH)
 
+        // Previous month calendar bounds
         val prevCal = Calendar.getInstance().apply {
             set(Calendar.MONTH, currentMonth - 1)
         }
         val prevYear = prevCal.get(Calendar.YEAR)
         val prevMonth = prevCal.get(Calendar.MONTH)
 
-        val currentPeriodExpenses = mutableListOf<com.shahid.spendwise.data.local.entity.TransactionEntity>()
-        val currentPeriodIncomes = mutableListOf<com.shahid.spendwise.data.local.entity.TransactionEntity>()
-        val prevMonthExpenses = mutableListOf<com.shahid.spendwise.data.local.entity.TransactionEntity>()
+        var totalExpensesMinor = 0L
+        var totalIncomeMinor = 0L
+
+        val currentCatExpenses = mutableMapOf<Long, Long>()
+        val prevCatExpenses = mutableMapOf<Long, Long>()
 
         for (tx in transactions) {
             val txCal = Calendar.getInstance().apply { timeInMillis = tx.timestampMillis }
             val y = txCal.get(Calendar.YEAR)
             val m = txCal.get(Calendar.MONTH)
 
+            val rate = if (tx.currency.equals(baseCurrency, ignoreCase = true)) {
+                1.0
+            } else {
+                rateMap[tx.currency]?.rateToBase ?: 1.0
+            }
+            val convertedAmount = Money.convertMinor(tx.amountMinor, rate)
+
             val matchesPeriod = if (isYearly) y == currentYear else (y == currentYear && m == currentMonth)
             if (matchesPeriod) {
-                if (tx.type == TransactionType.EXPENSE) currentPeriodExpenses.add(tx) else currentPeriodIncomes.add(tx)
+                if (tx.type == TransactionType.EXPENSE) {
+                    totalExpensesMinor += convertedAmount
+                    currentCatExpenses[tx.categoryId] = (currentCatExpenses[tx.categoryId] ?: 0L) + convertedAmount
+                } else {
+                    totalIncomeMinor += convertedAmount
+                }
             }
 
             if (!isYearly && y == prevYear && m == prevMonth && tx.type == TransactionType.EXPENSE) {
-                prevMonthExpenses.add(tx)
+                prevCatExpenses[tx.categoryId] = (prevCatExpenses[tx.categoryId] ?: 0L) + convertedAmount
             }
         }
 
-        val totalExpensesMinor = currentPeriodExpenses.sumOf { it.amountMinor }
-        val totalIncomeMinor = currentPeriodIncomes.sumOf { it.amountMinor }
+        // Category breakdown
+        val breakdown = currentCatExpenses.map { (catId, sum) ->
+            val ratio = if (totalExpensesMinor > 0) sum.toFloat() / totalExpensesMinor else 0f
+            CategoryExpenseStat(
+                category = catMap[catId],
+                totalAmountMinor = sum,
+                formattedAmount = Money(sum, baseCurrency).format(),
+                percentageOfTotal = ratio
+            )
+        }.sortedByDescending { it.totalAmountMinor }
 
-        val breakdown = currentPeriodExpenses.groupBy { it.categoryId }
-            .map { (catId, txs) ->
-                val sum = txs.sumOf { it.amountMinor }
-                val ratio = if (totalExpensesMinor > 0) sum.toFloat() / totalExpensesMinor else 0f
-                CategoryExpenseStat(
-                    category = catMap[catId],
-                    totalAmountMinor = sum,
-                    formattedAmount = Money(sum, baseCurrency).format(),
-                    percentageOfTotal = ratio
-                )
-            }.sortedByDescending { it.totalAmountMinor }
-
+        // Month-over-month comparisons (e.g. "Food up 20% vs last month")
         val comparisons = mutableListOf<MonthComparisonItem>()
         if (!isYearly) {
-            val currCatMap = currentPeriodExpenses.groupBy { it.categoryId }.mapValues { it.value.sumOf { t -> t.amountMinor } }
-            val prevCatMap = prevMonthExpenses.groupBy { it.categoryId }.mapValues { it.value.sumOf { t -> t.amountMinor } }
-
-            for ((catId, currAmount) in currCatMap) {
-                val prevAmount = prevCatMap[catId] ?: 0L
+            for ((catId, currAmount) in currentCatExpenses) {
+                val prevAmount = prevCatExpenses[catId] ?: 0L
                 val catName = catMap[catId]?.name ?: "General"
 
                 val changePercent = if (prevAmount > 0) {

@@ -2,6 +2,10 @@ package com.shahid.spendwise.update
 
 object VersionComparator {
 
+    /**
+     * Parses semantic version from tag strings like "v1.2.3" or "1.2.3".
+     * Returns Triple(major, minor, patch).
+     */
     fun parseSemanticVersion(tag: String): Triple<Int, Int, Int> {
         val clean = tag.trim().removePrefix("v").substringBefore("-")
         val parts = clean.split(".")
@@ -11,12 +15,28 @@ object VersionComparator {
         return Triple(major, minor, patch)
     }
 
+    /**
+     * Calculates versionCode according to formula:
+     * versionCode = major * 10000 + minor * 100 + patch
+     */
     fun calculateVersionCode(tag: String): Int {
         val (major, minor, patch) = parseSemanticVersion(tag)
         return major * 10000 + minor * 100 + patch
     }
 
-    fun isUpdateAvailable(currentVersionName: String, releaseTag: String): Boolean {
+    /**
+     * Checks if releaseTag represents a newer version than currentVersionName / currentVersionCode.
+     */
+    fun isUpdateAvailable(
+        currentVersionName: String,
+        currentVersionCode: Int = 0,
+        releaseTag: String
+    ): Boolean {
+        val releaseCode = calculateVersionCode(releaseTag)
+        if (currentVersionCode > 0 && releaseCode > currentVersionCode) {
+            return true
+        }
+
         val current = parseSemanticVersion(currentVersionName)
         val release = parseSemanticVersion(releaseTag)
 

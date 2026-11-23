@@ -48,9 +48,11 @@ class BudgetsViewModel @Inject constructor(
         repository.getBudgetsForMonth(currentMonthYear),
         repository.getTransactions(includeLocked = false),
         repository.getAllCategories(),
-        preferencesRepository.baseCurrency
-    ) { budgets, transactions, categories, baseCurrency ->
+        preferencesRepository.baseCurrency,
+        repository.getAllRates()
+    ) { budgets, transactions, categories, baseCurrency, rates ->
         val catMap = categories.associateBy { it.id }
+        val rateMap = rates.associateBy { it.currencyCode }
 
         val cal = Calendar.getInstance().apply {
             set(Calendar.DAY_OF_MONTH, 1)
@@ -65,9 +67,20 @@ class BudgetsViewModel @Inject constructor(
             it.type == TransactionType.EXPENSE && it.timestampMillis >= startOfMonth
         }
 
-        val totalMonthExpense = monthExpenses.sumOf { it.amountMinor }
-        val categoryExpenseMap = monthExpenses.groupBy { it.categoryId }
-            .mapValues { entry -> entry.value.sumOf { it.amountMinor } }
+        // Convert each expense to base currency using exchange rate
+        var totalMonthExpense = 0L
+        val categoryExpenseMap = mutableMapOf<Long, Long>()
+
+        for (tx in monthExpenses) {
+            val rate = if (tx.currency.equals(baseCurrency, ignoreCase = true)) {
+                1.0
+            } else {
+                rateMap[tx.currency]?.rateToBase ?: 1.0
+            }
+            val converted = Money.convertMinor(tx.amountMinor, rate)
+            totalMonthExpense += converted
+            categoryExpenseMap[tx.categoryId] = (categoryExpenseMap[tx.categoryId] ?: 0L) + converted
+        }
 
         var overallItem: BudgetProgressItem? = null
         val catItems = mutableListOf<BudgetProgressItem>()

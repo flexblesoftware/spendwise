@@ -19,12 +19,24 @@ import java.text.SimpleDateFormat
 import java.util.*
 import javax.inject.Inject
 
+data class CsvPreviewData(
+    val headers: List<String>,
+    val sampleRow: List<String>,
+    val rawContent: String,
+    val initialAmountCol: Int = 0,
+    val initialCategoryCol: Int = 1,
+    val initialDateCol: Int = 2,
+    val initialNoteCol: Int = 3,
+    val initialTypeCol: Int = 4
+)
+
 data class BackupUiState(
     val isExporting: Boolean = false,
     val isImporting: Boolean = false,
     val statusMessage: String? = null,
     val isSuccess: Boolean = false,
-    val baseCurrency: String = "USD"
+    val baseCurrency: String = "USD",
+    val csvPreview: CsvPreviewData? = null
 )
 
 @HiltViewModel
@@ -99,6 +111,7 @@ class BackupViewModel @Inject constructor(
                         ExportImportHelper.parseBackup(input)
                     } ?: throw IllegalStateException("Unable to read backup file")
 
+                    // Restore transactions and categories
                     repository.insertAllTransactions(backupData.transactions)
                     for (cat in backupData.categories) {
                         repository.insertCategory(cat)
@@ -160,6 +173,119 @@ class BackupViewModel @Inject constructor(
                 _uiState.update { it.copy(statusMessage = "PDF report generated successfully!", isSuccess = true) }
             } catch (e: Exception) {
                 _uiState.update { it.copy(statusMessage = "PDF generation failed: ${e.message}", isSuccess = false) }
+            }
+        }
+    }
+
+    fun onCsvFileSelected(context: Context, uri: Uri) {
+        viewModelScope.launch(Dispatchers.IO) {
+            try {
+                val content = context.contentResolver.openInputStream(uri)?.bufferedReader()?.readText()
+                    ?: throw IllegalStateException("Empty CSV file")
+
+                val lines = content.lines().filter { it.isNotBlank() }
+                if (lines.isEmpty()) {
+                    _uiState.update { it.copy(statusMessage = "CSV file is empty", isSuccess = false) }
+                    return@launch
+                }
+
+                val headerParts = lines[0].split(",").map { it.trim().trim('"') }
+                val sampleParts = if (lines.size > 1) lines[1].split(",").map { it.trim().trim('"') } else emptyList()
+
+                // Smart auto-detect column indices by header name
+                var amtCol = 0
+                var catCol = 1.coerceAtMost(headerParts.size - 1)
+                var dateCol = 2.coerceAtMost(headerParts.size - 1)
+                var noteCol = 3.coerceAtMost(headerParts.size - 1)
+                var typeCol = 4.coerceAtMost(headerParts.size - 1)
+
+                headerParts.forEachIndexed { idx, h ->
+                    val lower = h.lowercase()
+                    when {
+                        lower.contains("amount") -> amtCol = idx
+                        lower.contains("category") -> catCol = idx
+                        lower.contains("date") || lower.contains("time") -> dateCol = idx
+                        lower.contains("note") || lower.contains("desc") -> noteCol = idx
+                        lower.contains("type") -> typeCol = idx
+                    }
+                }
+
+                val preview = CsvPreviewData(
+                    headers = headerParts,
+                    sampleRow = sampleParts,
+                    rawContent = content,
+                    initialAmountCol = amtCol,
+                    initialCategoryCol = catCol,
+                    initialDateCol = dateCol,
+                    initialNoteCol = noteCol,
+                    initialTypeCol = typeCol
+                )
+                _uiState.update { it.copy(csvPreview = preview) }
+            } catch (e: Exception) {
+                _uiState.update { it.copy(statusMessage = "Failed to open CSV: ${e.message}", isSuccess = false) }
+            }
+        }
+    }
+
+    fun dismissCsvDialog() {
+        _uiState.update { it.copy(csvPreview = null) }
+    }
+
+    fun executeCsvImport(
+        amountCol: Int,
+        categoryCol: Int,
+        dateCol: Int,
+        noteCol: Int,
+        typeCol: Int
+    ) {
+        val preview = _uiState.value.csvPreview ?: return
+        viewModelScope.launch(Dispatchers.IO) {
+            try {
+                _uiState.update { it.copy(isImporting = true, statusMessage = "Importing CSV transactions...") }
+
+                val categories = repository.getAllCategories().firstOrNull() ?: emptyList()
+                val existingTxs = repository.getTransactions(includeLocked = true).firstOrNull() ?: emptyList()
+                val baseCurr = _uiState.value.baseCurrency
+
+                val result = ExportImportHelper.parseCsvWithDuplicateDetection(
+                    csvContent = preview.rawContent,
+                    amountCol = amountCol,
+                    categoryCol = categoryCol,
+                    dateCol = dateCol,
+                    noteCol = noteCol,
+                    typeCol = typeCol,
+                    categories = categories,
+                    existingTransactions = existingTxs,
+                    currency = baseCurr
+                )
+
+                if (result.newTransactions.isNotEmpty()) {
+                    repository.insertAllTransactions(result.newTransactions)
+                }
+
+                val summary = if (result.duplicatesSkippedCount > 0) {
+                    "Imported ${result.importedCount} transactions successfully (${result.duplicatesSkippedCount} duplicates skipped)!"
+                } else {
+                    "Imported all ${result.importedCount} transactions successfully!"
+                }
+
+                _uiState.update {
+                    it.copy(
+                        isImporting = false,
+                        csvPreview = null,
+                        statusMessage = summary,
+                        isSuccess = true
+                    )
+                }
+            } catch (e: Exception) {
+                _uiState.update {
+                    it.copy(
+                        isImporting = false,
+                        csvPreview = null,
+                        statusMessage = "CSV Import failed: ${e.message}",
+                        isSuccess = false
+                    )
+                }
             }
         }
     }

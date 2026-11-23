@@ -17,6 +17,11 @@ import javax.inject.Singleton
 sealed class UpdateUiState {
     object Idle : UpdateUiState()
     object Checking : UpdateUiState()
+    data class UpToDate(
+        val currentVersionName: String,
+        val latestTag: String,
+        val checkedAtMillis: Long = System.currentTimeMillis()
+    ) : UpdateUiState()
     data class UpdateRequired(
         val release: GitHubRelease,
         val apkAsset: GitHubAsset
@@ -34,7 +39,8 @@ sealed class UpdateUiState {
     ) : UpdateUiState()
     data class Error(
         val message: String,
-        val canRetry: Boolean = true
+        val canRetry: Boolean = true,
+        val isForcedUpdateError: Boolean = false
     ) : UpdateUiState()
 }
 
@@ -49,6 +55,9 @@ class UpdateManager @Inject constructor(
     private var activeRelease: GitHubRelease? = null
     private var activeAsset: GitHubAsset? = null
 
+    val hasPendingUpdate: Boolean
+        get() = activeRelease != null && activeAsset != null
+
     suspend fun checkForUpdates(forceCheck: Boolean = false) {
         if (_updateState.value is UpdateUiState.Downloading ||
             _updateState.value is UpdateUiState.ReadyToInstall
@@ -62,6 +71,7 @@ class UpdateManager @Inject constructor(
         result.onSuccess { release ->
             val hasUpdate = VersionComparator.isUpdateAvailable(
                 currentVersionName = BuildConfig.VERSION_NAME,
+                currentVersionCode = BuildConfig.VERSION_CODE,
                 releaseTag = release.tagName
             )
 
@@ -71,6 +81,7 @@ class UpdateManager @Inject constructor(
                     activeRelease = release
                     activeAsset = apkAsset
 
+                    // Check if already downloaded and verified
                     val updateDir = File(context.cacheDir, "updates")
                     val targetApk = File(updateDir, "SpendWise-${release.tagName}.apk")
                     if (targetApk.exists() && targetApk.length() == apkAsset.size) {
@@ -79,15 +90,29 @@ class UpdateManager @Inject constructor(
                         _updateState.value = UpdateUiState.UpdateRequired(release, apkAsset)
                     }
                 } else {
-                    _updateState.value = UpdateUiState.Idle
+                    _updateState.value = UpdateUiState.UpToDate(
+                        currentVersionName = BuildConfig.VERSION_NAME,
+                        latestTag = release.tagName
+                    )
                 }
             } else {
-                _updateState.value = UpdateUiState.Idle
+                _updateState.value = UpdateUiState.UpToDate(
+                    currentVersionName = BuildConfig.VERSION_NAME,
+                    latestTag = release.tagName
+                )
             }
         }.onFailure { error ->
             if (forceCheck) {
                 _updateState.value = UpdateUiState.Error(
-                    error.message ?: "Unable to check for updates. Please check your connection."
+                    message = error.message ?: "Unable to check for updates. Please check your internet connection.",
+                    canRetry = true,
+                    isForcedUpdateError = hasPendingUpdate
+                )
+            } else if (hasPendingUpdate) {
+                _updateState.value = UpdateUiState.Error(
+                    message = error.message ?: "Unable to complete update check.",
+                    canRetry = true,
+                    isForcedUpdateError = true
                 )
             } else {
                 _updateState.value = UpdateUiState.Idle
@@ -98,6 +123,14 @@ class UpdateManager @Inject constructor(
     fun startDownload() {
         val asset = activeAsset ?: return
         val release = activeRelease ?: return
+
+        // Check if already downloaded and verified
+        val updateDir = File(context.cacheDir, "updates")
+        val targetApk = File(updateDir, "SpendWise-${release.tagName}.apk")
+        if (targetApk.exists() && targetApk.length() == asset.size) {
+            _updateState.value = UpdateUiState.ReadyToInstall(targetApk, release.tagName)
+            return
+        }
 
         val intent = Intent(context, UpdateDownloadService::class.java).apply {
             putExtra(UpdateDownloadService.EXTRA_DOWNLOAD_URL, asset.downloadUrl)
@@ -128,7 +161,11 @@ class UpdateManager @Inject constructor(
     }
 
     fun reportDownloadError(errorMessage: String) {
-        _updateState.value = UpdateUiState.Error(errorMessage, canRetry = true)
+        _updateState.value = UpdateUiState.Error(
+            message = errorMessage,
+            canRetry = true,
+            isForcedUpdateError = true
+        )
     }
 
     fun retry() {

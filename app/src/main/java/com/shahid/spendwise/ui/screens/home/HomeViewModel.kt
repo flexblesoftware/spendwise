@@ -43,9 +43,11 @@ class HomeViewModel @Inject constructor(
         _isPrivacyUnlocked.flatMapLatest { unlocked -> repository.getTransactions(includeLocked = unlocked) },
         repository.getAllCategories(),
         preferencesRepository.baseCurrency,
+        repository.getAllRates(),
         _isPrivacyUnlocked
-    ) { transactions, categories, baseCurrency, isUnlocked ->
+    ) { transactions, categories, baseCurrency, rates, isUnlocked ->
         val catMap = categories.associateBy { it.id }
+        val rateMap = rates.associateBy { it.currencyCode }
 
         val cal = Calendar.getInstance().apply {
             set(Calendar.DAY_OF_MONTH, 1)
@@ -61,16 +63,22 @@ class HomeViewModel @Inject constructor(
         var totalBalance = 0L
 
         for (tx in transactions) {
-            val amount = tx.amountMinor
+            val rate = if (tx.currency.equals(baseCurrency, ignoreCase = true)) {
+                1.0
+            } else {
+                rateMap[tx.currency]?.rateToBase ?: 1.0
+            }
+            val convertedAmount = Money.convertMinor(tx.amountMinor, rate)
+
             if (tx.type == TransactionType.INCOME) {
-                totalBalance += amount
+                totalBalance += convertedAmount
                 if (tx.timestampMillis >= startOfMonthMillis) {
-                    monthIncome += amount
+                    monthIncome += convertedAmount
                 }
             } else {
-                totalBalance -= amount
+                totalBalance -= convertedAmount
                 if (tx.timestampMillis >= startOfMonthMillis) {
-                    monthExpense += amount
+                    monthExpense += convertedAmount
                 }
             }
         }
@@ -95,5 +103,20 @@ class HomeViewModel @Inject constructor(
 
     fun setPrivacyUnlocked(unlocked: Boolean) {
         _isPrivacyUnlocked.value = unlocked
+    }
+
+    fun quickAddExpense(amountMinor: Long, categoryId: Long, note: String) {
+        viewModelScope.launch {
+            val tx = TransactionEntity(
+                type = TransactionType.EXPENSE,
+                amountMinor = amountMinor,
+                currency = preferencesRepository.baseCurrency.value,
+                categoryId = categoryId,
+                timestampMillis = System.currentTimeMillis(),
+                note = note,
+                tags = listOf("quick-add")
+            )
+            repository.insertTransaction(tx)
+        }
     }
 }

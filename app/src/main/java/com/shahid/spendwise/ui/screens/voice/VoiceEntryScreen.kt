@@ -11,8 +11,10 @@ import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
@@ -36,6 +38,8 @@ fun VoiceEntryScreen(
 ) {
     val uiState by viewModel.uiState.collectAsState()
     val context = LocalContext.current
+    val scrollState = rememberScrollState()
+    var typedPhrase by remember { mutableStateOf("") }
 
     var hasAudioPermission by remember {
         mutableStateOf(
@@ -64,7 +68,7 @@ fun VoiceEntryScreen(
             override fun onBufferReceived(buffer: ByteArray?) {}
             override fun onEndOfSpeech() { viewModel.setListening(false) }
             override fun onError(error: Int) {
-                viewModel.setError("Could not recognize speech. Please try again.")
+                viewModel.setError("Could not recognize speech. Please try speaking again or use typed entry below.")
             }
             override fun onResults(results: Bundle?) {
                 val matches = results?.getStringArrayList(SpeechRecognizer.RESULTS_RECOGNITION)
@@ -91,7 +95,7 @@ fun VoiceEntryScreen(
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("Voice Quick-Entry") },
+                title = { Text("Voice & Natural Language Entry") },
                 navigationIcon = {
                     IconButton(onClick = onNavigateBack, modifier = Modifier.size(48.dp)) {
                         Icon(Icons.Default.ArrowBack, contentDescription = "Back")
@@ -104,13 +108,14 @@ fun VoiceEntryScreen(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(padding)
+                .verticalScroll(scrollState)
                 .padding(20.dp),
             horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.SpaceBetween
+            verticalArrangement = Arrangement.spacedBy(24.dp)
         ) {
             Column(horizontalAlignment = Alignment.CenterHorizontally) {
                 Text(
-                    text = "Speak naturally to log an expense",
+                    text = "Speak or type naturally to log an entry",
                     style = MaterialTheme.typography.titleMedium,
                     fontWeight = FontWeight.Bold
                 )
@@ -123,6 +128,7 @@ fun VoiceEntryScreen(
                 )
             }
 
+            // Listening Visual Indicator & Status
             Column(horizontalAlignment = Alignment.CenterHorizontally) {
                 IconButton(
                     onClick = {
@@ -138,11 +144,11 @@ fun VoiceEntryScreen(
                             viewModel.setListening(true)
                             speechRecognizer.startListening(intent)
                         } else {
-                            viewModel.setError("Speech recognition is not available on this device.")
+                            viewModel.setError("Speech recognition is unavailable on this device. You can type your phrase below.")
                         }
                     },
                     modifier = Modifier
-                        .size(100.dp)
+                        .size(96.dp)
                         .clip(CircleShape)
                         .background(
                             if (uiState.isListening) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.primary
@@ -156,7 +162,7 @@ fun VoiceEntryScreen(
                     )
                 }
 
-                Spacer(modifier = Modifier.height(16.dp))
+                Spacer(modifier = Modifier.height(14.dp))
                 Text(
                     text = if (uiState.isListening) "Listening... speak now" else "Tap microphone to speak",
                     style = MaterialTheme.typography.bodyMedium,
@@ -168,11 +174,53 @@ fun VoiceEntryScreen(
                     Text(
                         text = uiState.errorMessage!!,
                         color = MaterialTheme.colorScheme.error,
-                        style = MaterialTheme.typography.bodySmall
+                        style = MaterialTheme.typography.bodySmall,
+                        textAlign = TextAlign.Center
                     )
                 }
             }
 
+            // Typed Fallback
+            Surface(
+                modifier = Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(12.dp),
+                color = MaterialTheme.colorScheme.surfaceVariant
+            ) {
+                Column(modifier = Modifier.padding(14.dp)) {
+                    Text(
+                        text = "Typed Natural Language Fallback",
+                        style = MaterialTheme.typography.labelLarge,
+                        fontWeight = FontWeight.Bold
+                    )
+                    Spacer(modifier = Modifier.height(6.dp))
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        OutlinedTextField(
+                            value = typedPhrase,
+                            onValueChange = { typedPhrase = it },
+                            placeholder = { Text("e.g. 250 chai or rent 15000 yesterday", fontSize = 13.sp) },
+                            singleLine = true,
+                            modifier = Modifier.weight(1f)
+                        )
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Button(
+                            onClick = {
+                                if (typedPhrase.isNotBlank()) {
+                                    viewModel.onSpeechRecognized(typedPhrase)
+                                }
+                            },
+                            enabled = typedPhrase.isNotBlank(),
+                            shape = RoundedCornerShape(8.dp)
+                        ) {
+                            Text("Parse")
+                        }
+                    }
+                }
+            }
+
+            // Parsed Draft Preview & Confirmation
             if (uiState.draft != null) {
                 val draft = uiState.draft!!
                 val formattedAmount = Money(draft.amountMinor, uiState.baseCurrency).format()
@@ -213,9 +261,9 @@ fun VoiceEntryScreen(
                         }
                     }
                 }
-            } else {
-                Spacer(modifier = Modifier.height(40.dp))
             }
+
+            Spacer(modifier = Modifier.height(32.dp))
         }
     }
 }
