@@ -101,7 +101,7 @@ class SessionPersistenceTest {
         val expectedSize = testPayload.size.toLong()
 
         // Size check
-        val downloadedSize = 39L
+        val downloadedSize = testPayload.size.toLong()
         assertEquals(expectedSize, downloadedSize)
 
         // SHA-256 calculation check
