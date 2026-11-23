@@ -1,6 +1,7 @@
 package com.shahid.spendwise.data.local.entity
 
 import androidx.room.Entity
+import androidx.room.ForeignKey
 import androidx.room.Index
 import androidx.room.PrimaryKey
 import com.shahid.spendwise.domain.model.DebtStatus
@@ -27,7 +28,7 @@ data class TransactionEntity(
     val categoryId: Long,
     val timestampMillis: Long,
     val note: String,
-    val tags: List<String>,
+    val tags: List<String> = emptyList(),
     val receiptPhotoPath: String? = null,
     val isTaxRelevant: Boolean = false,
     val isPrivacyLocked: Boolean = false,
@@ -52,9 +53,9 @@ data class CategoryEntity(
 )
 data class BudgetEntity(
     @PrimaryKey(autoGenerate = true) val id: Long = 0,
-    val categoryId: Long? = null,
+    val categoryId: Long? = null, // null represents overall monthly budget
     val amountMinor: Long,
-    val monthYear: String
+    val monthYear: String // Format: "YYYY-MM"
 )
 
 @Serializable
