@@ -1,0 +1,69 @@
+Starting a Gradle Daemon (subsequent builds will be faster)
+> Task :app:preBuild UP-TO-DATE
+> Task :app:preDebugBuild UP-TO-DATE
+> Task :app:checkKotlinGradlePluginConfigurationErrors SKIPPED
+> Task :app:generateDebugBuildConfig
+> Task :app:generateDebugResValues
+> Task :app:checkDebugAarMetadata
+> Task :app:mapDebugSourceSetPaths
+> Task :app:generateDebugResources
+> Task :app:packageDebugResources
+> Task :app:mergeDebugResources
+> Task :app:createDebugCompatibleScreenManifests
+> Task :app:extractDeepLinksDebug
+> Task :app:parseDebugLocalResources
+> Task :app:processDebugMainManifest
+> Task :app:processDebugManifest
+> Task :app:preDebugUnitTestBuild UP-TO-DATE
+> Task :app:processDebugManifestForPackage
+> Task :app:javaPreCompileDebugUnitTest
+> Task :app:javaPreCompileDebug
+> Task :app:processDebugResources
+> Task :app:kspDebugKotlin
+
+> Task :app:compileDebugKotlin
+w: file:///home/runner/work/spendwise/spendwise/app/src/main/java/com/shahid/spendwise/ui/components/CategoryIconHelper.kt:22:43 'val Icons.Filled.TrendingUp: ImageVector' is deprecated. Use the AutoMirrored version at Icons.AutoMirrored.Filled.TrendingUp.
+w: file:///home/runner/work/spendwise/spendwise/app/src/main/java/com/shahid/spendwise/ui/screens/analytics/AnalyticsScreen.kt:39:44 'val Icons.Filled.ArrowBack: ImageVector' is deprecated. Use the AutoMirrored version at Icons.AutoMirrored.Filled.ArrowBack.
+w: file:///home/runner/work/spendwise/spendwise/app/src/main/java/com/shahid/spendwise/ui/screens/analytics/AnalyticsScreen.kt:107:72 'val Icons.Filled.TrendingUp: ImageVector' is deprecated. Use the AutoMirrored version at Icons.AutoMirrored.Filled.TrendingUp.
+w: file:///home/runner/work/spendwise/spendwise/app/src/main/java/com/shahid/spendwise/ui/screens/analytics/AnalyticsScreen.kt:107:102 'val Icons.Filled.TrendingDown: ImageVector' is deprecated. Use the AutoMirrored version at Icons.AutoMirrored.Filled.TrendingDown.
+w: file:///home/runner/work/spendwise/spendwise/app/src/main/java/com/shahid/spendwise/ui/screens/analytics/AnalyticsScreen.kt:181:29 'fun LinearProgressIndicator(progress: Float, modifier: Modifier = ..., color: Color = ..., trackColor: Color = ..., strokeCap: StrokeCap = ...): Unit' is deprecated. Use the overload that takes `progress` as a lambda.
+w: file:///home/runner/work/spendwise/spendwise/app/src/main/java/com/shahid/spendwise/ui/screens/backup/BackupExportScreen.kt:72:44 'val Icons.Filled.ArrowBack: ImageVector' is deprecated. Use the AutoMirrored version at Icons.AutoMirrored.Filled.ArrowBack.
+w: file:///home/runner/work/spendwise/spendwise/app/src/main/java/com/shahid/spendwise/ui/screens/backup/BackupExportScreen.kt:222:44 'val Icons.Filled.ReceiptLong: ImageVector' is deprecated. Use the AutoMirrored version at Icons.AutoMirrored.Filled.ReceiptLong.
+w: file:///home/runner/work/spendwise/spendwise/app/src/main/java/com/shahid/spendwise/ui/screens/budget/BudgetsScreen.kt:41:44 'val Icons.Filled.ArrowBack: ImageVector' is deprecated. Use the AutoMirrored version at Icons.AutoMirrored.Filled.ArrowBack.
+w: file:///home/runner/work/spendwise/spendwise/app/src/main/java/com/shahid/spendwise/ui/screens/budget/BudgetsScreen.kt:107:29 'fun LinearProgressIndicator(progress: Float, modifier: Modifier = ..., color: Color = ..., trackColor: Color = ..., strokeCap: StrokeCap = ...): Unit' is deprecated. Use the overload that takes `progress` as a lambda.
+w: file:///home/runner/work/spendwise/spendwise/app/src/main/java/com/shahid/spendwise/ui/screens/budget/BudgetsScreen.kt:178:29 'fun LinearProgressIndicator(progress: Float, modifier: Modifier = ..., color: Color = ..., trackColor: Color = ..., strokeCap: StrokeCap = ...): Unit' is deprecated. Use the overload that takes `progress` as a lambda.
+w: file:///home/runner/work/spendwise/spendwise/app/src/main/java/com/shahid/spendwise/ui/screens/camera/ReceiptCameraScreen.kt:40:26 'val LocalLifecycleOwner: ProvidableCompositionLocal<LifecycleOwner>' is deprecated. Moved to lifecycle-runtime-compose library in androidx.lifecycle.compose package.
+w: file:///home/runner/work/spendwise/spendwise/app/src/main/java/com/shahid/spendwise/ui/screens/camera/ReceiptCameraScreen.kt:110:32 'val Icons.Filled.ArrowBack: ImageVector' is deprecated. Use the AutoMirrored version at Icons.AutoMirrored.Filled.ArrowBack.
+w: file:///home/runner/work/spendwise/spendwise/app/src/main/java/com/shahid/spendwise/ui/screens/debt/DebtsScreen.kt:51:44 'val Icons.Filled.ArrowBack: ImageVector' is deprecated. Use the AutoMirrored version at Icons.AutoMirrored.Filled.ArrowBack.
+w: file:///home/runner/work/spendwise/spendwise/app/src/main/java/com/shahid/spendwise/ui/screens/goals/SavingsGoalsScreen.kt:49:44 'val Icons.Filled.ArrowBack: ImageVector' is deprecated. Use the AutoMirrored version at Icons.AutoMirrored.Filled.ArrowBack.
+w: file:///home/runner/work/spendwise/spendwise/app/src/main/java/com/shahid/spendwise/ui/screens/home/HomeScreen.kt:249:46 'val Icons.Filled.ReceiptLong: ImageVector' is deprecated. Use the AutoMirrored version at Icons.AutoMirrored.Filled.ReceiptLong.
+w: file:///home/runner/work/spendwise/spendwise/app/src/main/java/com/shahid/spendwise/ui/screens/home/HomeViewModel.kt:43:28 This declaration needs opt-in. Its usage should be marked with '@kotlinx.coroutines.ExperimentalCoroutinesApi' or '@OptIn(kotlinx.coroutines.ExperimentalCoroutinesApi::class)'
+w: file:///home/runner/work/spendwise/spendwise/app/src/main/java/com/shahid/spendwise/ui/screens/recurring/RecurringScreen.kt:40:44 'val Icons.Filled.ArrowBack: ImageVector' is deprecated. Use the AutoMirrored version at Icons.AutoMirrored.Filled.ArrowBack.
+w: file:///home/runner/work/spendwise/spendwise/app/src/main/java/com/shahid/spendwise/ui/screens/search/SearchFilterScreen.kt:34:44 'val Icons.Filled.ArrowBack: ImageVector' is deprecated. Use the AutoMirrored version at Icons.AutoMirrored.Filled.ArrowBack.
+w: file:///home/runner/work/spendwise/spendwise/app/src/main/java/com/shahid/spendwise/ui/screens/settings/SettingsScreen.kt:48:44 'val Icons.Filled.ArrowBack: ImageVector' is deprecated. Use the AutoMirrored version at Icons.AutoMirrored.Filled.ArrowBack.
+w: file:///home/runner/work/spendwise/spendwise/app/src/main/java/com/shahid/spendwise/ui/screens/split/SplitBillsScreen.kt:41:44 'val Icons.Filled.ArrowBack: ImageVector' is deprecated. Use the AutoMirrored version at Icons.AutoMirrored.Filled.ArrowBack.
+w: file:///home/runner/work/spendwise/spendwise/app/src/main/java/com/shahid/spendwise/ui/screens/transaction/AddEditTransactionScreen.kt:91:44 'val Icons.Filled.ArrowBack: ImageVector' is deprecated. Use the AutoMirrored version at Icons.AutoMirrored.Filled.ArrowBack.
+w: file:///home/runner/work/spendwise/spendwise/app/src/main/java/com/shahid/spendwise/ui/screens/voice/VoiceEntryScreen.kt:101:44 'val Icons.Filled.ArrowBack: ImageVector' is deprecated. Use the AutoMirrored version at Icons.AutoMirrored.Filled.ArrowBack.
+w: file:///home/runner/work/spendwise/spendwise/app/src/main/java/com/shahid/spendwise/ui/theme/Theme.kt:56:24 'var statusBarColor: Int' is deprecated. Deprecated in Java.
+w: file:///home/runner/work/spendwise/spendwise/app/src/main/java/com/shahid/spendwise/ui/theme/Theme.kt:57:24 'var navigationBarColor: Int' is deprecated. Deprecated in Java.
+w: file:///home/runner/work/spendwise/spendwise/app/src/main/java/com/shahid/spendwise/update/UpdateDownloadService.kt:134:17 'fun stopForeground(p0: Boolean): Unit' is deprecated. Deprecated in Java.
+w: file:///home/runner/work/spendwise/spendwise/app/src/main/java/com/shahid/spendwise/update/UpdateDownloadService.kt:140:17 'fun stopForeground(p0: Boolean): Unit' is deprecated. Deprecated in Java.
+
+> Task :app:compileDebugJavaWithJavac
+> Task :app:hiltAggregateDepsDebug
+> Task :app:hiltJavaCompileDebug
+> Task :app:processDebugJavaRes
+> Task :app:bundleDebugClassesToCompileJar
+> Task :app:transformDebugClassesWithAsm
+> Task :app:bundleDebugClassesToRuntimeJar
+> Task :app:kspDebugUnitTestKotlin
+> Task :app:compileDebugUnitTestKotlin
+> Task :app:compileDebugUnitTestJavaWithJavac NO-SOURCE
+> Task :app:hiltAggregateDepsDebugUnitTest
+> Task :app:hiltJavaCompileDebugUnitTest NO-SOURCE
+> Task :app:processDebugUnitTestJavaRes
+> Task :app:transformDebugUnitTestClassesWithAsm
+> Task :app:testDebugUnitTest
+
+BUILD SUCCESSFUL in 55s
+31 actionable tasks: 31 executed
