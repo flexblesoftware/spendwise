@@ -63,6 +63,7 @@ fun SpendWiseTheme(
 
     MaterialTheme(
         colorScheme = colorScheme,
+        typography = SpendWiseTypography,
         content = content
     )
 }

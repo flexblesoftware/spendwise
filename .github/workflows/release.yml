@@ -43,41 +43,70 @@ jobs:
           TAG="${GITHUB_REF##*/}"
           case "$TAG" in
             v*.*.*) ;;
-            *) TAG="v1.0.0" ;;
+            *) TAG="v1.0.2" ;;
           esac
           VERSION_CLEAN="${TAG#v}"
           IFS='.' read -r MAJOR MINOR PATCH <<< "$VERSION_CLEAN"
           MAJOR=${MAJOR:-1}
           MINOR=${MINOR:-0}
-          PATCH=${PATCH:-0}
-          VERSION_CODE=$((MAJOR * 10000 + MINOR * 100 + PATCH))
+          PATCH=${PATCH:-2}
+          RUN_NUM="${{ github.run_number }}"
+          VERSION_CODE=$(( (MAJOR * 10000 + MINOR * 100 + PATCH) * 100 + (RUN_NUM % 100) ))
           echo "TAG=$TAG" >> $GITHUB_ENV
           echo "VERSION_NAME=$VERSION_CLEAN" >> $GITHUB_ENV
           echo "VERSION_CODE=$VERSION_CODE" >> $GITHUB_ENV
           echo "Tag: $TAG, VersionName: $VERSION_CLEAN, VersionCode: $VERSION_CODE"
 
-      - name: Decode or Generate Release Keystore
+      - name: Decode or Restore Fixed Release Keystore
         env:
           KEYSTORE_BASE64: ${{ secrets.KEYSTORE_BASE64 }}
           KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
           KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
         run: |
           if [ -n "$KEYSTORE_BASE64" ]; then
-            echo "Decoding release keystore from KEYSTORE_BASE64 secret..."
+            echo "Decoding fixed release keystore from KEYSTORE_BASE64 secret..."
             echo "$KEYSTORE_BASE64" | base64 -d > spendwise-release.jks
           else
-            echo "Generating release keystore..."
-            STORE_PASS="${KEYSTORE_PASSWORD:-SwKeyStore2026!7xQm9K4vLpW}"
-            ALIAS="${KEY_ALIAS:-spendwise}"
-            printf "yes\n" | keytool -genkeypair -v -keystore spendwise-release.jks -alias "$ALIAS" \
-              -keyalg RSA -keysize 2048 -validity 10000 \
-              -storepass "$STORE_PASS" -keypass "$STORE_PASS" \
-              -dname "CN=MD Shahid, OU=SpendWise, O=SpendWise, L=Termux, ST=State, C=IN"
-            echo "KEYSTORE_PASSWORD=$STORE_PASS" >> $GITHUB_ENV
-            echo "KEY_PASSWORD=$STORE_PASS" >> $GITHUB_ENV
-            echo "KEY_ALIAS=$ALIAS" >> $GITHUB_ENV
-            echo "Generated keystore successfully!"
+            echo "Checking for persistent keystore on signing-keystore branch..."
+            git fetch origin signing-keystore:signing-keystore 2>/dev/null || true
+            if git show signing-keystore:spendwise-release.jks > spendwise-release.jks 2>/dev/null && [ -s spendwise-release.jks ]; then
+              echo "Reusing existing persistent release keystore from signing-keystore branch!"
+            else
+              echo "Generating fixed release keystore..."
+              STORE_PASS="${KEYSTORE_PASSWORD:-SwKeyStore2026!7xQm9K4vLpW}"
+              ALIAS="${KEY_ALIAS:-spendwise}"
+              printf "yes\n" | keytool -genkeypair -v -keystore spendwise-release.jks -alias "$ALIAS" \
+                -keyalg RSA -keysize 2048 -validity 10000 \
+                -storepass "$STORE_PASS" -keypass "$STORE_PASS" \
+                -dname "CN=MD Shahid, OU=SpendWise, O=SpendWise, L=Termux, ST=State, C=IN"
+              
+              # Persist keystore to dedicated branch so updates never fail with signature mismatch
+              CURRENT_BRANCH="${GITHUB_REF##*/}"
+              git config user.name "github-actions[bot]"
+              git config user.email "github-actions[bot]@users.noreply.github.com"
+              git branch -D signing-keystore 2>/dev/null || true
+              git checkout --orphan signing-keystore
+              git rm -rf . || true
+              git add -f spendwise-release.jks
+              git commit -m "chore: persist fixed release keystore across builds" || true
+              git push -f origin signing-keystore || true
+              git checkout "$CURRENT_BRANCH" || git checkout -
+            fi
+            echo "KEYSTORE_PASSWORD=SwKeyStore2026!7xQm9K4vLpW" >> $GITHUB_ENV
+            echo "KEY_PASSWORD=SwKeyAlias2026!9rVn8B3cTxM" >> $GITHUB_ENV
+            echo "KEY_ALIAS=spendwise" >> $GITHUB_ENV
           fi
+
+      - name: Bundle Real Typography & Offline Assets
+        run: |
+          mkdir -p app/src/main/res/font
+          # Download official font families from Google Fonts repository
+          echo "Downloading official UI font families..."
+          curl -sSL "https://github.com/google/fonts/raw/main/ofl/inter/Inter%5Bopsz%2Cwght%5D.ttf" -o app/src/main/res/font/inter.ttf || true
+          curl -sSL "https://github.com/google/fonts/raw/main/ofl/outfit/Outfit%5Bwght%5D.ttf" -o app/src/main/res/font/outfit.ttf || true
+          curl -sSL "https://github.com/google/fonts/raw/main/ofl/plusjakartasans/PlusJakartaSans%5Bwght%5D.ttf" -o app/src/main/res/font/plus_jakarta_sans.ttf || true
+          curl -sSL "https://github.com/google/fonts/raw/main/ofl/jetbrainsmono/JetBrainsMono%5Bwght%5D.ttf" -o app/src/main/res/font/jetbrains_mono.ttf || true
+          ls -lh app/src/main/res/font/
 
       - name: Run Unit Tests
         run: |

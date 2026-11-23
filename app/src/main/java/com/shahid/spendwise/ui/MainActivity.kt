@@ -16,6 +16,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.fragment.app.FragmentActivity
 import androidx.navigation.compose.rememberNavController
+import com.shahid.spendwise.auth.repository.AuthRepository
 import com.shahid.spendwise.data.repository.PreferencesRepository
 import com.shahid.spendwise.security.BiometricHelper
 import com.shahid.spendwise.ui.navigation.SpendWiseNavGraph
@@ -31,6 +32,9 @@ class MainActivity : FragmentActivity() {
 
     @Inject
     lateinit var updateManager: UpdateManager
+
+    @Inject
+    lateinit var authRepository: AuthRepository
 
     @Inject
     lateinit var preferencesRepository: PreferencesRepository
@@ -51,8 +55,9 @@ class MainActivity : FragmentActivity() {
                 val updateState by updateManager.updateState.collectAsState()
                 var isAppUnlocked by remember { mutableStateOf(!preferencesRepository.isUnlockRequired()) }
 
-                // Check for updates automatically on app open
+                // Silent session restore & background update check on app launch
                 LaunchedEffect(Unit) {
+                    authRepository.checkAndRefreshSession()
                     updateManager.checkForUpdates(forceCheck = false)
                 }
 
