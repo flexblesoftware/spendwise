@@ -134,6 +134,11 @@ jobs:
           done
           ls -lh app/src/main/res/font/ || true
 
+      - name: Generate High-Precision Launcher & Store Icons
+        run: |
+          pip install --quiet pillow
+          python3 scripts/generate_launcher_icons.py
+
       - name: Run Unit Tests
         run: |
           set -eo pipefail
