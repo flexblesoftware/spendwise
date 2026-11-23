@@ -48,7 +48,8 @@ class CsvImportExportTest {
                 currency = "USD",
                 categoryId = 1L,
                 timestampMillis = 1700000000000L,
-                note = "Grocery shopping"
+                note = "Grocery shopping",
+                tags = emptyList()
             )
         )
 
