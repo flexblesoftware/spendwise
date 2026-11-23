@@ -46,10 +46,15 @@ jobs:
             *) TAG="v1.0.0" ;;
           esac
           VERSION_CLEAN="${TAG#v}"
+          IFS='.' read -r MAJOR MINOR PATCH <<< "$VERSION_CLEAN"
+          MAJOR=${MAJOR:-1}
+          MINOR=${MINOR:-0}
+          PATCH=${PATCH:-0}
+          VERSION_CODE=$((MAJOR * 10000 + MINOR * 100 + PATCH))
           echo "TAG=$TAG" >> $GITHUB_ENV
           echo "VERSION_NAME=$VERSION_CLEAN" >> $GITHUB_ENV
-          echo "VERSION_CODE=10000" >> $GITHUB_ENV
-          echo "Tag: $TAG, VersionName: $VERSION_CLEAN, VersionCode: 10000"
+          echo "VERSION_CODE=$VERSION_CODE" >> $GITHUB_ENV
+          echo "Tag: $TAG, VersionName: $VERSION_CLEAN, VersionCode: $VERSION_CODE"
 
       - name: Decode or Generate Release Keystore
         env:
@@ -83,7 +88,7 @@ jobs:
           KEYSTORE_FILE: ${{ github.workspace }}/spendwise-release.jks
           KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD || env.KEYSTORE_PASSWORD || 'SwKeyStore2026!7xQm9K4vLpW' }}
           KEY_ALIAS: ${{ secrets.KEY_ALIAS || env.KEY_ALIAS || 'spendwise' }}
-          KEY_PASSWORD: ${{ secrets.KEY_PASSWORD || env.KEY_PASSWORD || 'SwKeyStore2026!7xQm9K4vLpW' }}
+          KEY_PASSWORD: ${{ secrets.KEY_PASSWORD || env.KEY_PASSWORD || 'SwKeyAlias2026!9rVn8B3cTxM' }}
           VERSION_NAME: ${{ env.VERSION_NAME }}
           VERSION_CODE: ${{ env.VERSION_CODE }}
         run: |
