@@ -34,9 +34,11 @@ android {
         create("release") {
             if (releaseStoreFile.exists()) {
                 storeFile = releaseStoreFile
-                storePassword = System.getenv("KEYSTORE_PASSWORD")?.takeIf { it.isNotBlank() } ?: "SwKeyStore2026!7xQm9K4vLpW"
+                val storePass = System.getenv("KEYSTORE_PASSWORD")?.takeIf { it.isNotBlank() } ?: "SwKeyStore2026!7xQm9K4vLpW"
+                val keyPass = System.getenv("KEY_PASSWORD")?.takeIf { it.isNotBlank() } ?: storePass
+                storePassword = storePass
                 keyAlias = System.getenv("KEY_ALIAS")?.takeIf { it.isNotBlank() } ?: "spendwise"
-                keyPassword = System.getenv("KEY_PASSWORD")?.takeIf { it.isNotBlank() } ?: System.getenv("KEYSTORE_PASSWORD")?.takeIf { it.isNotBlank() } ?: "SwKeyAlias2026!9rVn8B3cTxM"
+                keyPassword = keyPass
             }
         }
     }

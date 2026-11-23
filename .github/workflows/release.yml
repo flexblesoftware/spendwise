@@ -69,7 +69,7 @@ jobs:
             echo "Decoding fixed release keystore from KEYSTORE_BASE64 secret..."
             echo "$KEYSTORE_BASE64" | base64 -d > spendwise-release.jks
             STORE_PASS="${KEYSTORE_PASSWORD:-SwKeyStore2026!7xQm9K4vLpW}"
-            KEY_PASS="${KEY_PASSWORD:-SwKeyAlias2026!9rVn8B3cTxM}"
+            KEY_PASS="${KEY_PASSWORD:-$STORE_PASS}"
             ALIAS="${KEY_ALIAS:-spendwise}"
           else
             echo "Checking for persistent keystore on signing-keystore branch..."
@@ -84,7 +84,7 @@ jobs:
             rm -f temp-keystore.jks
 
             STORE_PASS="${KEYSTORE_PASSWORD:-SwKeyStore2026!7xQm9K4vLpW}"
-            KEY_PASS="${KEY_PASSWORD:-SwKeyAlias2026!9rVn8B3cTxM}"
+            KEY_PASS="${KEY_PASSWORD:-$STORE_PASS}"
             ALIAS="${KEY_ALIAS:-spendwise}"
 
             if [ "$KEYSTORE_RESTORED" -eq 0 ]; then
