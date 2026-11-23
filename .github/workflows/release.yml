@@ -105,6 +105,7 @@ jobs:
           cp "$APK_PATH" "$ASSET_NAME"
           echo "ASSET_NAME=$ASSET_NAME" >> $GITHUB_ENV
           echo "Generated APK: $ASSET_NAME"
+          ls -lh "$ASSET_NAME"
 
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
@@ -122,6 +123,8 @@ jobs:
           mkdir -p ci-logs
           echo "Job Status: ${{ job.status }}" > ci-logs/status.txt
           echo "TAG=$TAG, VERSION_NAME=$VERSION_NAME, VERSION_CODE=$VERSION_CODE" >> ci-logs/status.txt
+          ls -lh SpendWise-*.apk >> ci-logs/status.txt 2>&1 || true
+          sha256sum SpendWise-*.apk >> ci-logs/status.txt 2>&1 || true
           ls -la spendwise-release.jks >> ci-logs/status.txt 2>&1 || true
           [ -f test.log ] && cp test.log ci-logs/test.log || echo "No test.log" > ci-logs/test.log
           [ -f release.log ] && cp release.log ci-logs/release.log || echo "No release.log" > ci-logs/release.log
