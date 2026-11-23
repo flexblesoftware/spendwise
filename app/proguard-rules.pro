@@ -39,8 +39,10 @@
 
 # AndroidX Security & Google Tink
 -dontwarn com.google.errorprone.annotations.**
+-dontwarn com.google.crypto.tink.**
+-dontwarn com.google.api.client.**
+-dontwarn org.joda.time.**
 -keep class androidx.security.crypto.** { *; }
--keep class com.google.crypto.tink.** { *; }
 
 # Lottie Compose
 -keep class com.airbnb.lottie.** { *; }
