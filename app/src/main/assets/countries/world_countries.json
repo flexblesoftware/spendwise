@@ -1,0 +1,25 @@
+{
+  "version": "1.0",
+  "countries": [
+    { "name": "United States", "code": "US", "code3": "USA", "currency": "USD", "continent": "North America" },
+    { "name": "India", "code": "IN", "code3": "IND", "currency": "INR", "continent": "Asia" },
+    { "name": "United Kingdom", "code": "GB", "code3": "GBR", "currency": "GBP", "continent": "Europe" },
+    { "name": "Germany", "code": "DE", "code3": "DEU", "currency": "EUR", "continent": "Europe" },
+    { "name": "France", "code": "FR", "code3": "FRA", "currency": "EUR", "continent": "Europe" },
+    { "name": "Canada", "code": "CA", "code3": "CAN", "currency": "CAD", "continent": "North America" },
+    { "name": "Australia", "code": "AU", "code3": "AUS", "currency": "AUD", "continent": "Oceania" },
+    { "name": "Japan", "code": "JP", "code3": "JPN", "currency": "JPY", "continent": "Asia" },
+    { "name": "China", "code": "CN", "code3": "CHN", "currency": "CNY", "continent": "Asia" },
+    { "name": "United Arab Emirates", "code": "AE", "code3": "ARE", "currency": "AED", "continent": "Asia" },
+    { "name": "Saudi Arabia", "code": "SA", "code3": "SAU", "currency": "SAR", "continent": "Asia" },
+    { "name": "Singapore", "code": "SG", "code3": "SGP", "currency": "SGD", "continent": "Asia" },
+    { "name": "Switzerland", "code": "CH", "code3": "CHE", "currency": "CHF", "continent": "Europe" },
+    { "name": "Brazil", "code": "BR", "code3": "BRA", "currency": "BRL", "continent": "South America" },
+    { "name": "Mexico", "code": "MX", "code3": "MEX", "currency": "MXN", "continent": "North America" },
+    { "name": "South Africa", "code": "ZA", "code3": "ZAF", "currency": "ZAR", "continent": "Africa" },
+    { "name": "South Korea", "code": "KR", "code3": "KOR", "currency": "KRW", "continent": "Asia" },
+    { "name": "Spain", "code": "ES", "code3": "ESP", "currency": "EUR", "continent": "Europe" },
+    { "name": "Italy", "code": "IT", "code3": "ITA", "currency": "EUR", "continent": "Europe" },
+    { "name": "Netherlands", "code": "NL", "code3": "NLD", "currency": "EUR", "continent": "Europe" }
+  ]
+}

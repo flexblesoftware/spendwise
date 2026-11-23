@@ -46,6 +46,9 @@ fun HomeScreen(
     val context = LocalContext.current
     val activity = context as? FragmentActivity
 
+    var showQuickAddDialog by remember { mutableStateOf(false) }
+    var showProfileDialog by remember { mutableStateOf(false) }
+
     Scaffold(
         topBar = {
             TopAppBar(
@@ -64,6 +67,7 @@ fun HomeScreen(
                     }
                 },
                 actions = {
+                    // Privacy lock toggle
                     IconButton(
                         onClick = {
                             if (uiState.isPrivacyUnlocked) {
@@ -75,7 +79,7 @@ fun HomeScreen(
                                         title = "View Private Transactions",
                                         subtitle = "Authenticate to reveal hidden entries",
                                         onSuccess = { viewModel.setPrivacyUnlocked(true) },
-                                        onError = { }
+                                        onError = { /* Keep locked */ }
                                     )
                                 } else {
                                     viewModel.setPrivacyUnlocked(true)
@@ -95,6 +99,9 @@ fun HomeScreen(
                     }
                     IconButton(onClick = onNavigateToSettings, modifier = Modifier.size(48.dp)) {
                         Icon(Icons.Default.Settings, contentDescription = "Settings")
+                    }
+                    IconButton(onClick = { showProfileDialog = true }, modifier = Modifier.size(48.dp)) {
+                        Icon(Icons.Default.AccountCircle, contentDescription = "Account & Profile")
                     }
                 }
             )
@@ -127,6 +134,7 @@ fun HomeScreen(
                 .padding(horizontal = 16.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
+            // Net Balance Card
             item {
                 Card(
                     modifier = Modifier
@@ -199,6 +207,7 @@ fun HomeScreen(
                 }
             }
 
+            // Quick Hub Navigation Row
             item {
                 Row(
                     modifier = Modifier.fillMaxWidth(),
@@ -213,6 +222,7 @@ fun HomeScreen(
                 }
             }
 
+            // Recent Transactions Header
             item {
                 Row(
                     modifier = Modifier
@@ -232,6 +242,7 @@ fun HomeScreen(
                 }
             }
 
+            // Recent Transactions List or Empty State
             if (uiState.recentTransactions.isEmpty()) {
                 item {
                     EmptyStateView(
@@ -255,6 +266,54 @@ fun HomeScreen(
             item {
                 Spacer(modifier = Modifier.height(64.dp))
             }
+        }
+
+        if (showProfileDialog) {
+            AlertDialog(
+                onDismissRequest = { showProfileDialog = false },
+                icon = {
+                    Icon(
+                        Icons.Default.AccountCircle,
+                        contentDescription = null,
+                        modifier = Modifier.size(48.dp),
+                        tint = MaterialTheme.colorScheme.primary
+                    )
+                },
+                title = { Text("MD Shahid") },
+                text = {
+                    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                        Text(
+                            text = "shahiidkhan108@gmail.com",
+                            style = MaterialTheme.typography.bodyMedium,
+                            fontWeight = FontWeight.SemiBold
+                        )
+                        Surface(
+                            shape = RoundedCornerShape(8.dp),
+                            color = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.4f),
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            Text(
+                                text = "🔒 Android Keystore Secured\n• Session persists across app updates\n• Local data strictly preserved without wipe",
+                                style = MaterialTheme.typography.labelSmall,
+                                modifier = Modifier.padding(10.dp)
+                            )
+                        }
+                    }
+                },
+                confirmButton = {
+                    Button(onClick = { showProfileDialog = false }) {
+                        Text("Done")
+                    }
+                },
+                dismissButton = {
+                    TextButton(onClick = {
+                        showProfileDialog = false
+                        onNavigateToSettings()
+                    }) {
+                        Text("Settings")
+                    }
+                }
+            )
         }
     }
 }

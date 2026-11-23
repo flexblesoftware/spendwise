@@ -1,0 +1,23 @@
+{
+  "version": "1.0",
+  "language": "en",
+  "keywords": {
+    "expenseVerbs": ["paid", "spent", "bought", "give", "sent", "bill", "charged"],
+    "incomeVerbs": ["received", "got", "salary", "bonus", "dividend", "interest", "deposit", "earned"],
+    "categories": {
+      "Food & Dining": ["chai", "coffee", "lunch", "dinner", "breakfast", "burger", "pizza", "restaurant", "cafe", "tea", "snack"],
+      "Groceries": ["milk", "bread", "vegetables", "fruits", "supermarket", "walmart", "grocery", "eggs", "oil", "ration"],
+      "Transport": ["uber", "ola", "taxi", "cab", "metro", "bus", "train", "flight", "petrol", "diesel", "fuel", "gas"],
+      "Housing & Rent": ["rent", "maintenance", "landlord", "flat", "apartment"],
+      "Utilities & Bills": ["electricity", "water", "wifi", "broadband", "mobile", "recharge", "gas cylinder"],
+      "Shopping": ["clothes", "shoes", "amazon", "flipkart", "mall", "electronics", "gadget", "watch"],
+      "Health & Medical": ["doctor", "medicine", "pharmacy", "hospital", "clinic", "tests", "dentist"],
+      "Salary": ["monthly salary", "stipend", "paycheck", "wages"]
+    },
+    "relativeDates": {
+      "yesterday": -1,
+      "today": 0,
+      "day before yesterday": -2
+    }
+  }
+}

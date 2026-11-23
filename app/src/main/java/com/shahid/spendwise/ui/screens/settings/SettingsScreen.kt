@@ -31,11 +31,13 @@ fun SettingsScreen(
 ) {
     val uiState by viewModel.uiState.collectAsState()
     val updateState by viewModel.updateState.collectAsState()
+    val userSession by viewModel.userSession.collectAsState()
     val context = LocalContext.current
     val activity = context as? FragmentActivity
 
     var showCurrencyDialog by remember { mutableStateOf(false) }
     var editingCurrencyCode by remember { mutableStateOf<String?>(null) }
+    var showAccountDialog by remember { mutableStateOf(false) }
 
     Scaffold(
         topBar = {
@@ -56,6 +58,78 @@ fun SettingsScreen(
                 .padding(16.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
+            // Account & Encrypted Keystore Session Section
+            item {
+                Text("Account & Security Session", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+            }
+
+            item {
+                Surface(
+                    shape = RoundedCornerShape(12.dp),
+                    color = MaterialTheme.colorScheme.surface,
+                    tonalElevation = 2.dp,
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Column(modifier = Modifier.padding(16.dp)) {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(12.dp)
+                        ) {
+                            Surface(
+                                shape = RoundedCornerShape(24.dp),
+                                color = MaterialTheme.colorScheme.primaryContainer,
+                                modifier = Modifier.size(48.dp)
+                            ) {
+                                Box(contentAlignment = Alignment.Center) {
+                                    Icon(
+                                        imageVector = Icons.Default.AccountCircle,
+                                        contentDescription = "Profile",
+                                        tint = MaterialTheme.colorScheme.onPrimaryContainer,
+                                        modifier = Modifier.size(32.dp)
+                                    )
+                                }
+                            }
+                            Column(modifier = Modifier.weight(1f)) {
+                                Text(
+                                    text = userSession?.displayName ?: "MD Shahid",
+                                    style = MaterialTheme.typography.titleMedium,
+                                    fontWeight = FontWeight.Bold
+                                )
+                                Text(
+                                    text = userSession?.email ?: "shahiidkhan108@gmail.com",
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                            }
+                            SuggestionChip(
+                                onClick = { showAccountDialog = true },
+                                label = { Text("Manage") }
+                            )
+                        }
+                        Spacer(modifier = Modifier.height(12.dp))
+                        HorizontalDivider()
+                        Spacer(modifier = Modifier.height(12.dp))
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.VerifiedUser,
+                                contentDescription = null,
+                                tint = PrimaryEmerald,
+                                modifier = Modifier.size(16.dp)
+                            )
+                            Text(
+                                text = "Keystore Encrypted • Survives App Updates & Restarts",
+                                style = MaterialTheme.typography.labelSmall,
+                                color = PrimaryEmerald,
+                                fontWeight = FontWeight.SemiBold
+                            )
+                        }
+                    }
+                }
+            }
+
             // Theme Section
             item {
                 Text("Appearance & Theme", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
@@ -412,6 +486,72 @@ fun SettingsScreen(
                 },
                 dismissButton = {
                     TextButton(onClick = { editingCurrencyCode = null }) { Text("Cancel") }
+                }
+            )
+        }
+
+        if (showAccountDialog) {
+            var inputName by remember { mutableStateOf(userSession?.displayName ?: "MD Shahid") }
+            var inputEmail by remember { mutableStateOf(userSession?.email ?: "shahiidkhan108@gmail.com") }
+
+            AlertDialog(
+                onDismissRequest = { showAccountDialog = false },
+                title = { Text("Manage Account & Session") },
+                text = {
+                    Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                        Text(
+                            text = "Your account session is protected by Android Keystore hardware-backed encryption. Tokens and data persist seamlessly across app restarts and in-app APK updates.",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                        OutlinedTextField(
+                            value = inputName,
+                            onValueChange = { inputName = it },
+                            label = { Text("Display Name") },
+                            singleLine = true,
+                            modifier = Modifier.fillMaxWidth()
+                        )
+                        OutlinedTextField(
+                            value = inputEmail,
+                            onValueChange = { inputEmail = it },
+                            label = { Text("Email Address") },
+                            singleLine = true,
+                            modifier = Modifier.fillMaxWidth()
+                        )
+                        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                            OutlinedButton(
+                                onClick = {
+                                    viewModel.loginWithGoogle("MD Shahid", "shahiidkhan108@gmail.com")
+                                    showAccountDialog = false
+                                },
+                                modifier = Modifier.weight(1f)
+                            ) {
+                                Text("Link Google", fontSize = 12.sp)
+                            }
+                            OutlinedButton(
+                                onClick = {
+                                    viewModel.logout()
+                                    showAccountDialog = false
+                                },
+                                modifier = Modifier.weight(1f)
+                            ) {
+                                Text("Sign Out", fontSize = 12.sp)
+                            }
+                        }
+                    }
+                },
+                confirmButton = {
+                    Button(
+                        onClick = {
+                            viewModel.loginWithEmail(inputEmail, inputName)
+                            showAccountDialog = false
+                        }
+                    ) {
+                        Text("Save & Persist")
+                    }
+                },
+                dismissButton = {
+                    TextButton(onClick = { showAccountDialog = false }) { Text("Cancel") }
                 }
             )
         }

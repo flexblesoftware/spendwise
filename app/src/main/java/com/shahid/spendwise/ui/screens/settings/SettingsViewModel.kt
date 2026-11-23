@@ -2,6 +2,8 @@ package com.shahid.spendwise.ui.screens.settings
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.shahid.spendwise.auth.model.UserSession
+import com.shahid.spendwise.auth.repository.AuthRepository
 import com.shahid.spendwise.data.local.entity.CurrencyRateEntity
 import com.shahid.spendwise.data.repository.PreferencesRepository
 import com.shahid.spendwise.data.repository.SpendWiseRepository
@@ -24,10 +26,12 @@ data class SettingsUiState(
 class SettingsViewModel @Inject constructor(
     private val preferencesRepository: PreferencesRepository,
     private val repository: SpendWiseRepository,
+    private val authRepository: AuthRepository,
     val updateManager: UpdateManager
 ) : ViewModel() {
 
     val updateState: StateFlow<UpdateUiState> = updateManager.updateState
+    val userSession: StateFlow<UserSession?> = authRepository.currentSession
 
     val uiState: StateFlow<SettingsUiState> = combine(
         preferencesRepository.baseCurrency,
@@ -70,6 +74,24 @@ class SettingsViewModel @Inject constructor(
                     lastUpdatedMillis = System.currentTimeMillis()
                 )
             )
+        }
+    }
+
+    fun loginWithEmail(email: String, displayName: String) {
+        viewModelScope.launch {
+            authRepository.loginWithEmail(email, displayName)
+        }
+    }
+
+    fun loginWithGoogle(accountName: String, email: String) {
+        viewModelScope.launch {
+            authRepository.loginWithGoogle(accountName, email)
+        }
+    }
+
+    fun logout() {
+        viewModelScope.launch {
+            authRepository.logout()
         }
     }
 

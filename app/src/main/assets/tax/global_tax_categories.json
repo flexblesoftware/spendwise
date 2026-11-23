@@ -1,0 +1,16 @@
+{
+  "version": "1.0",
+  "taxJurisdictions": [
+    {
+      "region": "GLOBAL",
+      "categories": [
+        { "name": "Housing & Rent", "isDeductible": true, "notes": "Eligible for rent receipts and home office expense deductions." },
+        { "name": "Health & Medical", "isDeductible": true, "notes": "Health insurance premiums, prescription drugs, medical diagnostics." },
+        { "name": "Education & Training", "isDeductible": true, "notes": "Tuition fees, textbooks, professional certifications." },
+        { "name": "Business Utilities", "isDeductible": true, "notes": "Electricity, high-speed broadband, cellular phone bills." },
+        { "name": "Charitable Donations", "isDeductible": true, "notes": "Registered NGO contributions with formal receipts." },
+        { "name": "Retirement & Pension", "isDeductible": true, "notes": "IRA, 401k, NPS, PPF, Superannuation contributions." }
+      ]
+    }
+  ]
+}
