@@ -152,3 +152,79 @@ dependencies {
     androidTestImplementation(platform(libs.androidx.compose.bom))
     debugImplementation(libs.androidx.compose.ui.tooling)
 }
+
+tasks.register("generateLauncherIcons") {
+    description = "Generates high-precision raster launcher icons for legacy Android densities and Play Store"
+    doLast {
+        val bgDarkGreen = java.awt.Color(0x0B, 0x4D, 0x3B)
+        val fgBrightGreen = java.awt.Color(0x2E, 0xCC, 0x8F)
+
+        val densities = mapOf(
+            "mdpi" to 48,
+            "hdpi" to 72,
+            "xhdpi" to 96,
+            "xxhdpi" to 144,
+            "xxxhdpi" to 192
+        )
+
+        fun renderIcon(size: Int, isRound: Boolean): java.awt.image.BufferedImage {
+            val img = java.awt.image.BufferedImage(size, size, java.awt.image.BufferedImage.TYPE_INT_ARGB)
+            val g2 = img.createGraphics()
+            g2.setRenderingHint(java.awt.RenderingHints.KEY_ANTIALIASING, java.awt.RenderingHints.VALUE_ANTIALIAS_ON)
+            g2.setRenderingHint(java.awt.RenderingHints.KEY_RENDERING, java.awt.RenderingHints.VALUE_RENDER_QUALITY)
+            g2.setRenderingHint(java.awt.RenderingHints.KEY_STROKE_CONTROL, java.awt.RenderingHints.VALUE_STROKE_PURE)
+
+            g2.color = bgDarkGreen
+            if (isRound) {
+                g2.fill(java.awt.geom.Ellipse2D.Float(0f, 0f, size.toFloat(), size.toFloat()))
+            } else {
+                g2.fillRect(0, 0, size, size)
+            }
+
+            val scale = size.toFloat() / 108f
+            g2.color = fgBrightGreen
+
+            val barHeight = 8f * scale
+            val barRadius = 4f * scale
+            val barGap = 6f * scale
+            val totalGlyphHeight = 36f * scale
+            val startY = (size.toFloat() - totalGlyphHeight) / 2f
+
+            val barWidths = floatArrayOf(48f * scale, 36f * scale, 24f * scale)
+
+            for (i in 0 until 3) {
+                val w = barWidths[i]
+                val x = (size.toFloat() - w) / 2f
+                val y = startY + i * (barHeight + barGap)
+                val pill = java.awt.geom.RoundRectangle2D.Float(x, y, w, barHeight, barRadius * 2, barRadius * 2)
+                g2.fill(pill)
+            }
+
+            g2.dispose()
+            return img
+        }
+
+        val resDir = file("src/main/res")
+        densities.forEach { (density, size) ->
+            val dir = File(resDir, "mipmap-$density")
+            dir.mkdirs()
+            val squareImg = renderIcon(size, isRound = false)
+            javax.imageio.ImageIO.write(squareImg, "png", File(dir, "ic_launcher.png"))
+
+            val roundImg = renderIcon(size, isRound = true)
+            javax.imageio.ImageIO.write(roundImg, "png", File(dir, "ic_launcher_round.png"))
+        }
+
+        val playStoreImg = renderIcon(512, isRound = false)
+        val playStoreFile = rootProject.file("play_store_512.png")
+        javax.imageio.ImageIO.write(playStoreImg, "png", playStoreFile)
+        val appPlayStoreFile = file("src/main/play_store_512.png")
+        javax.imageio.ImageIO.write(playStoreImg, "png", appPlayStoreFile)
+
+        println("SpendWise: Generated all launcher icons and Play Store 512x512 icon successfully!")
+    }
+}
+
+tasks.named("preBuild") {
+    dependsOn("generateLauncherIcons")
+}
